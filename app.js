@@ -13,15 +13,14 @@ const port = process.env.PORT || 8080;
 
 // create env variable in Heroku
 mongoose.Promise = global.Promise;
-mongoose.connect(process.env.MONGODB || db.database, 
-    (err)=>{
-    if (err)
-        console.log('MongoDB Down');
-    else 
-        console.log('Connected to Mongo');
-}).catch(err => {
-    console.log('Error Connecting to Mongo');
-});
+mongoose.connect(process.env.MONGODB || db.database, (err) => {
+    if(!err) {
+        console.log("Connected to Mongo");
+    }
+  })
+  .catch(err => {
+    console.log("Error Connecting to Mongo");
+  });
 
 var app = express();
 
@@ -40,6 +39,10 @@ var server = http.createServer(app);
 
 // For authentication
 require('./config/passport')(passport);
+
+// Routes for authentication
+const authenticate = require('./routes/authenticate');
+app.use('/auth', authenticate);
 
 // Listening port
 server.listen(port, ()=> {
