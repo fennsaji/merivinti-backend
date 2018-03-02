@@ -21,9 +21,44 @@ var MemberSchema = new mongoose.Schema({
     churchId: {
         type: String,
         minlength: 6,
-        required: true,
         trim: true
     },
+    friends: [{
+        name: {
+            type: String,
+            minlength: 2,
+            required: true
+        },
+        username: {
+            type: String,
+            minlength: 2,
+            required: true
+        }
+    }],
+    following: [{
+        churchName : {
+            type: String,
+            minlength: 2,
+            required: true
+        },
+        churchId: {
+            type: String,
+            minlength: 2,
+            required: true
+        }
+    }],
+    followers: [{
+      churchName : {
+          type: String,
+          minlength: 2,
+          required: true
+      },
+      churchId: {
+          type: String,
+          minlength: 2,
+          required: true
+      }
+  }],
     password: {
         type: String,
         minlength: 6,
@@ -45,13 +80,20 @@ MemberSchema.methods.toJSON = function () {
     var memb = this;
     var membObject = memb.toObject();
   
-    return _.pick(membObject, ['_id', 'name', 'username', 'churchId']);
+    return _.pick(membObject, 
+      ['_id', 'name', 'username', 'churchId', 
+      'following', 'friends', 'followers']);
 };
 
 MemberSchema.methods.generateAuthToken = function () {
     var memb = this;
     var access = 'auth';
-    var token = jwt.sign({_id: memb._id.toHexString(), access}, process.env.SECRET || db.secret).toString();
+    var token = jwt.sign(
+      {_id: memb._id.toHexString(),
+        username: memb.username,
+        access}, 
+      process.env.SECRET || db.secret)
+      .toString();
   
     memb.tokens.push({access, token});
     return memb.save().then(() => {
@@ -74,13 +116,15 @@ MemberSchema.methods.generateAuthToken = function () {
     var decoded;
   
     try {
-      decoded = jwt.verify(token, process.env.SECRET || db.secret);
+      decoded = jwt.verify(token, 
+          process.env.SECRET || db.secret);
     } catch (e) {
+      console.log("no member wt verifyj");
       return Promise.reject(e);
     }
   
-    return User.findOne({
-      '_id': decoded._id,
+    return Memb.findOne({
+      'username': decoded.username,
       'tokens.token': token,
       'tokens.access': 'auth'
     });
@@ -89,9 +133,9 @@ MemberSchema.methods.generateAuthToken = function () {
   MemberSchema.statics.findByCredentials = function (username, password) {
     var Memb = this;
   
-    return User.findOne({username}).then((memb) => {
+    return Memb.findOne({username}).then((memb) => {
       if (!memb) {
-        return Promise.reject();
+        return Promise.reject({errNo: 7, mssg: 'User not found'});
       }
   
       return new Promise((resolve, reject) => {
@@ -100,7 +144,7 @@ MemberSchema.methods.generateAuthToken = function () {
           if (res) {
             resolve(memb);
           } else {
-            reject();
+            reject({errNo: 6, mssg: 'Incorrect Password'});
           }
         });
       });

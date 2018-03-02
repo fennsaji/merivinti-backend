@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const _ = require("lodash");
 const bcrypt = require("bcryptjs");
 const db = require("../config/database");
+const Member = require("./Member");
 
 var ChurchSchema = new mongoose.Schema({
   churchName: {
@@ -48,6 +49,10 @@ var ChurchSchema = new mongoose.Schema({
         minlength: 2,
         required: true
       },
+      approved: {
+        type: Boolean,
+        required: true
+      },
       password: {
         type: String,
         required: true,
@@ -57,12 +62,13 @@ var ChurchSchema = new mongoose.Schema({
   ],
   members: [
     {
-      membId: {
+      username: {
+        unique: true,
         type: String,
         minlength: 6,
         required: true
       },
-      membName: {
+      name: {
         type: String,
         minlength: 2,
         required: true
@@ -145,15 +151,34 @@ ChurchSchema.methods.generateAuthToken = function(leadId) {
   console.log(index, 'index');
   var token = jwt
     .sign({ 
-        _cId: church._id.toHexString(),
-        _leadId: church.leaders[index]._id.toHexString(), 
+        _cId: church.churchId,
+        _id: church.leaders[index]._id, 
+        username: church.leaders[index].leadId,
         access 
     },
       process.env.SECRET || db.secret
     )
     .toString();
 
+    console.log('token', token);
   church.tokens.push({ access, token });
+
+  Member
+    .findOne({username: leadId})
+    .then(memb => {
+      memb.tokens.push({access, token});
+      memb
+        .save()
+        .then(doc => {
+          console.log('Saved token to member', doc);
+        })
+        .catch(e => {
+          console.log('Unable to svae token to member');
+        });
+    })
+    .catch(e => {
+      console.log('Unable to svae token to member');
+    });
 
   return church.save().then(() => {
     return token;
@@ -185,14 +210,15 @@ ChurchSchema.statics.findByToken = function(token) {
   }
 
   return Church.findOne({
-    _id: decoded._cId,
+    churchId: decoded._cId,
+    "leaders._id": decoded._id,
     "tokens.token": token,
     "tokens.access": "auth"
   });
 };
 
 // Find leader
-ChurchSchema.statics.findByCredentials = function(churchId, leadId, password) {
+ChurchSchema.statics.findByCredentials = function(churchId, username, password) {
   var Church = this;
 
   return Church.findOne({ churchId }).then(church => {
@@ -201,20 +227,23 @@ ChurchSchema.statics.findByCredentials = function(churchId, leadId, password) {
       return Promise.reject({errNo: 0,mssg: 'No such Church found'});
     }
 
-    index = church.leaders.findIndex(lead => lead.leadId==leadId);
-    if(index==-1) {
-        return Promise.reject({errNo: 1,mssg: 'You are not a leader'});
+    var index = church.leaders.findIndex(lead => lead.leadId==username);
+    var ind = church.members.findIndex(memb => memb.username==username);
+    if(index == -1 && ind == -1) {  
+        return Promise.reject({errNo: 1, mssg: 'Neither leader nor member'});
+    }  else if (ind != -1 ) {
+        return Promise.resolve({church: undefined, member: church.members[ind]});
     }
-    console.log('index', index);
+    console.log('index', index, ind);
     return new Promise((resolve, reject) => {
         console.log('Leaders ',church.leaders[index].password);
       // Use bcrypt.compare to compare password and user.password
       bcrypt.compare(password, church.leaders[index].password, (err, res) => {
         if (res) {
-          resolve(church);
+          resolve({church, member: undefined});
         } else {
             console.log('Rejected2');
-          reject({errNo: 2,mssg: 'Incorrect Password'});
+          reject({errNo: 4,mssg: 'Incorrect Password'});
         }
       });
     });
