@@ -15,13 +15,15 @@ var authLead = (req, res, next) => {
       next();
     })
     .catch(e => {
-      res.status(401).send();
+      res.status(401).send("Error");
     });
 };
 
 var authMemb = (req, res, next) => {
   var token = req.header("x-auth");
 
+  console.log(req.header);
+  console.log('token2', token);
   Member.findByToken(token)
     .then(memb => {
       if (!memb) {
@@ -34,7 +36,7 @@ var authMemb = (req, res, next) => {
       next();
     })
     .catch(e => {
-      res.status(401).send("ERror");
+      res.status(401).send("Error");
     });
 };
 

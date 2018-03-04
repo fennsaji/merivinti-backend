@@ -39,7 +39,6 @@ var ChurchSchema = new mongoose.Schema({
   leaders: [
     {
       leadId: {
-        unique: true,
         type: String,
         minlength: 6,
         required: true
@@ -47,10 +46,6 @@ var ChurchSchema = new mongoose.Schema({
       leadName: {
         type: String,
         minlength: 2,
-        required: true
-      },
-      approved: {
-        type: Boolean,
         required: true
       },
       password: {
@@ -63,7 +58,20 @@ var ChurchSchema = new mongoose.Schema({
   members: [
     {
       username: {
-        unique: true,
+        type: String,
+        minlength: 6,
+        required: true
+      },
+      name: {
+        type: String,
+        minlength: 2,
+        required: true
+      }
+    }
+  ],
+  requests: [
+    {
+      username: {
         type: String,
         minlength: 6,
         required: true
@@ -73,9 +81,9 @@ var ChurchSchema = new mongoose.Schema({
         minlength: 2,
         required: true
       },
-      approved: {
-        type: Boolean,
-        required: true
+      desig : {
+        type: String,
+        default: 'member'
       }
     }
   ],
@@ -113,74 +121,73 @@ var ChurchSchema = new mongoose.Schema({
   // }
 });
 
-ChurchSchema.methods.toJSON = function () {
-    var user = this;
-    var userObject = user.toObject();
-    var newObject =  _.pick(userObject, 
-        ['_id', 
-        'churchName', 
-        'churchId', 
-        'members', 
-        'partners',
-        'families'
-    ]);
 
-    for (let i=0; i<userObject.leaders.length; i++) {
-        if(newObject.leaders) {
-            newObject.leaders.push(
-                _.pick(userObject.leaders[i], ['leadId', 'leadName', '_id'])
-            );
-        }
-        else {
-            newObject.leaders =
-                [_.pick(userObject.leaders[i], ['leadId', 'leadName', '_id'])];            
-        }
-        
-    };
-  
-    return newObject;
-  };
-  
+ChurchSchema.methods.toJSON = function() {
+  var user = this;
+  var userObject = user.toObject();
+  var newObject = _.pick(userObject, [
+    "_id",
+    "churchName",
+    "churchId",
+    "members",
+    "families"
+  ]);
+
+  for (let i = 0; i < userObject.leaders.length; i++) {
+    if (newObject.leaders) {
+      newObject.leaders.push(
+        _.pick(userObject.leaders[i], ["leadId", "leadName", "_id"])
+      );
+    } else {
+      newObject.leaders = [
+        _.pick(userObject.leaders[i], ["leadId", "leadName", "_id"])
+      ];
+    }
+  }
+
+  return newObject;
+};
 
 // TOken Generation
 ChurchSchema.methods.generateAuthToken = function(leadId) {
   var church = this;
   var access = "auth";
-  console.log('gen auth', church.leaders);
-  index = church.leaders.findIndex(lead => lead.leadId==leadId);
-  console.log(index, 'index');
+  console.log("gen auth", church.leaders);
+  index = church.leaders.findIndex(lead => lead.leadId == leadId);
+  console.log(index, "index");
   var token = jwt
-    .sign({ 
+    .sign(
+      {
         _cId: church.churchId,
-        _id: church.leaders[index]._id, 
+        _id: church.leaders[index]._id,
         username: church.leaders[index].leadId,
-        access 
-    },
+        access
+      },
       process.env.SECRET || db.secret
     )
     .toString();
 
-    console.log('token', token);
+  console.log("token", token);
   church.tokens.push({ access, token });
 
-  Member
-    .findOne({username: leadId})
+  Member.findOne({ username: leadId })
     .then(memb => {
-      memb.tokens.push({access, token});
+      memb.tokens.push({ access, token });
       memb
         .save()
         .then(doc => {
-          console.log('Saved token to member', doc);
+          console.log("Saved token to member", doc);
         })
         .catch(e => {
-          console.log('Unable to svae token to member');
+          console.log("Unable to svae token to member");
         });
     })
     .catch(e => {
-      console.log('Unable to svae token to member');
+      console.log("Unable to svae token to member");
     });
 
   return church.save().then(() => {
+    console.log('token saved');
     return token;
   });
 };
@@ -201,10 +208,9 @@ ChurchSchema.statics.findByToken = function(token) {
   var Church = this;
   var decoded;
 
-  
   try {
     decoded = jwt.verify(token, process.env.SECRET || db.secret);
-    console.log('finding token', decoded)
+    console.log("finding token", decoded);
   } catch (e) {
     return Promise.reject();
   }
@@ -218,32 +224,40 @@ ChurchSchema.statics.findByToken = function(token) {
 };
 
 // Find leader
-ChurchSchema.statics.findByCredentials = function(churchId, username, password) {
+ChurchSchema.statics.findByCredentials = function(
+  churchId,
+  username,
+  password
+) {
   var Church = this;
 
   return Church.findOne({ churchId }).then(church => {
     if (!church) {
-        console.log('Rejected');
-      return Promise.reject({errNo: 0,mssg: 'No such Church found'});
+      console.log("Rejected");
+      return Promise.reject({ errNo: 0, mssg: "No such Church found" });
     }
 
-    var index = church.leaders.findIndex(lead => lead.leadId==username);
-    var ind = church.members.findIndex(memb => memb.username==username);
-    if(index == -1 && ind == -1) {  
-        return Promise.reject({errNo: 1, mssg: 'Neither leader nor member'});
-    }  else if (ind != -1 ) {
-        return Promise.resolve({church: undefined, member: church.members[ind]});
+    var index = church.leaders.findIndex(lead => lead.leadId == username);
+    var ind = church.members.findIndex(memb => memb.username == username);
+
+    if (index == -1 && ind == -1) {
+      return Promise.reject({ errNo: 1, mssg: "Neither leader nor member" });
+    } else if (ind != -1) {
+      return Promise.resolve({ church: church, memb: church.members[ind] });
     }
-    console.log('index', index, ind);
+
+    console.log("index", index, ind, password);
+
     return new Promise((resolve, reject) => {
-        console.log('Leaders ',church.leaders[index].password);
+      console.log("Leaders ", church.leaders[index].password);
+      
       // Use bcrypt.compare to compare password and user.password
       bcrypt.compare(password, church.leaders[index].password, (err, res) => {
         if (res) {
-          resolve({church, member: undefined});
+          resolve({ church, memb: undefined });
         } else {
-            console.log('Rejected2');
-          reject({errNo: 4,mssg: 'Incorrect Password'});
+          console.log("Rejected2");
+          reject({ errNo: 4, mssg: "Incorrect Password" });
         }
       });
     });
@@ -251,13 +265,13 @@ ChurchSchema.statics.findByCredentials = function(churchId, username, password) 
 };
 
 ChurchSchema.statics.hashPassword = function(password) {
-    return new Promise((resolve, reject) => {
-        return bcrypt.genSalt(10, (err, salt) => {
-        bcrypt.hash(password, salt, (err, hash) => {
-            resolve(hash);
-        });
+  return new Promise((resolve, reject) => {
+    return bcrypt.genSalt(10, (err, salt) => {
+      bcrypt.hash(password, salt, (err, hash) => {
+        resolve(hash);
+      });
     });
-})
+  });
 };
 
 // Hashing Password before Saving
@@ -276,6 +290,6 @@ ChurchSchema.pre("save", function(next) {
   }
 });
 
-var Church = mongoose.model('church', ChurchSchema);
+var Church = mongoose.model("church", ChurchSchema);
 
 module.exports = Church;

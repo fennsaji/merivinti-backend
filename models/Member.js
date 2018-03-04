@@ -115,6 +115,7 @@ MemberSchema.methods.generateAuthToken = function () {
     var Memb = this;
     var decoded;
   
+    console.log('token', token);
     try {
       decoded = jwt.verify(token, 
           process.env.SECRET || db.secret);

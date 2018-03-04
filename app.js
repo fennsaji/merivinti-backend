@@ -1,8 +1,6 @@
 const express = require('express');
-// const path = require('path');
 const socketIO = require('socket.io');
 const cors = require('cors');
-const passport = require('passport');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const http = require('http');
@@ -30,19 +28,16 @@ app.use(cors());
 // Body Parser Middleware
 app.use(bodyParser.json());
 
-// Passport Middleware
-app.use(passport.initialize());
-app.use(passport.session());
-
 // Creating Server
 var server = http.createServer(app);
-
-// For authentication
-require('./config/passport')(passport);
 
 // Routes for authentication
 const authenticate = require('./routes/authenticate');
 app.use('/auth', authenticate);
+
+// Routes for prayer Requests
+const prayers = require("./routes/prayers");
+app.use('/prayer', prayers);
 
 // Listening port
 server.listen(port, ()=> {
