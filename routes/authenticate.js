@@ -7,18 +7,20 @@ const Member = require("../models/Member");
 
 const router = express.Router();
 
+// Remove leadName from request 
 // Church leader
 // Register 
 router.post("/regChurch", (req, res, next) => {
-  var newbody = req.body;
+  var newbody = _.pick(req.body, ["churchName", "churchId", "leaders.leadId", "leaders.password", "proPic"]);
   let newChurch;
   let newMemb;
   console.log(newbody);
-  Church.hashPassword(req.body.leaders.password)
+  Church.hashPassword(newbody.leaders.password)
     .then(hash => {
       newbody.leaders.password = hash;
       console.log(newbody);
       let newMember = {
+        proPic: req.body.proPic,
         name: req.body.leaders.leadName,
         username: req.body.leaders.leadId,
         churchId: req.body.churchId,
@@ -58,23 +60,15 @@ router.post("/regChurch", (req, res, next) => {
 // Church Member
 // register Member
 router.post("/regMemb", (req, res) => {
-  var body = _.pick(req.body, ["name", "username", "password"]);
+  var body = _.pick(req.body, ["name", "username", "password", "proPic"]);
   var newMemb = new Member(body);
 
-  var member = _.pick(req.body, ["name", "username"]);
+  var member = _.pick(req.body, ["username"]);
 
-  Church.findOneAndUpdate(
-    { churchId: req.body.churchId },
-    {
-      $push: {
-        requests: member
-      }
-    })
-    .then(church => {
-      console.log("register", church);
-    })
-    .catch(err => {
-      console.log("Could not request church");
+  Church.addAsMember(req.body.churchId, member)
+    .then()
+    .catch(e => {
+      console.log('error adding s member');
     });
 
   console.log(newMemb);
@@ -94,7 +88,6 @@ router.post("/regMemb", (req, res) => {
 
 // Authenticate
 router.post("/login", (req, res, next) => {
-  // const churchId = req.body.cId;
   const username = req.body.username;
   const password = req.body.password;
   console.log("authLaed :", req.body);
@@ -222,6 +215,20 @@ router.post("/checkUname", (req, res) => {
     .catch(e => {
       res.json({ success: true });
     });
+});
+
+
+// TO DOs
+router.delete('/deleteMemb', authMemb, (req, res) => {
+// Dont' delete if leader at index of church
+});
+
+router.delete('/deleteChurch', authLead, (req, res) => {
+
+});
+
+router.post('/newLeaderReq', (req, res) => {
+
 });
 
 module.exports = router;
