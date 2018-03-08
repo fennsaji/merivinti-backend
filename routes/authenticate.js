@@ -7,50 +7,53 @@ const Member = require("../models/Member");
 
 const router = express.Router();
 
-// Remove leadName from request 
 // Church leader
-// Register 
-router.post("/regChurch", (req, res, next) => {
-  var newbody = _.pick(req.body, ["churchName", "churchId", "leaders.leadId", "leaders.password", "proPic"]);
-  let newChurch;
-  let newMemb;
-  console.log(newbody);
-  Church.hashPassword(newbody.leaders.password)
-    .then(hash => {
-      newbody.leaders.password = hash;
-      console.log(newbody);
-      let newMember = {
-        proPic: req.body.proPic,
-        name: req.body.leaders.leadName,
-        username: req.body.leaders.leadId,
-        churchId: req.body.churchId,
-        password: hash
-      }
-      newMemb = new Member(newMember);
-      console.log("newchsa", newMemb);
-      return newMemb.save();
-    })
-    .then((newMemb) => {
-      newChurch = new Church(newbody);
-      console.log("saved", newMemb);
-      console.log("saved2", newChurch);
+// // Register
+router.post("/regChurch", (req, res) => {
+  var newChurchbody = _.pick(req.body, [
+    "churchName",
+    "churchId",
+    "leaders.leadId",
+    "proPic"
+  ]);
+  newChurchbody.leaders.type = "main";
+  var newChurch;
+  var newMembBody = {
+    proPic: req.body.proPic,
+    name: req.body.leaders.leadName,
+    username: req.body.leaders.leadId,
+    churchId: req.body.churchId,
+    password: req.body.leaders.password
+  };
+  console.log("1", newMembBody);
+  var newMemb = new Member(newMembBody);
+  newChurchbody.leaders._id = newMemb._id;
+  console.log("2", newMemb);
+  newMemb
+    .save()
+    .then(doc1 => {
+      newMemb = doc1;
+      newChurch = new Church(newChurchbody);
+      console.log("3", newChurch);
       return newChurch.save();
     })
-    .then(church => {
-      console.log("church: ", church);
-      return church.generateAuthToken(req.body.leaders.leadId);
+    .then(doc2 => {
+      newChurch = doc2;
+      console.log("4", newChurch);
+      return newMemb.generateAuthToken();
     })
     .then(token => {
-      console.log("token ", token, newChurch, newMemb);
-      res
-        .header("x-auth", token)
-        .json({
-          success: true,
-          church: newChurch,
-          token,
-          desig: "Leader",
-          memb: newMemb
-        });
+      console.log("5", token);
+      return newChurch.pushToken(token);
+    })
+    .then(token => {
+      res.header("x-auth", token).json({
+        success: true,
+        church: newChurch,
+        token,
+        desig: "Leader",
+        memb: newMemb
+      });
     })
     .catch(err => {
       res.status(400).json({ success: false, errObj: err });
@@ -64,14 +67,18 @@ router.post("/regMemb", (req, res) => {
   var newMemb = new Member(body);
 
   var member = _.pick(req.body, ["username"]);
-
-  Church.addAsMember(req.body.churchId, member)
-    .then()
-    .catch(e => {
-      console.log('error adding s member');
-    });
+  
+    Church.find()
+      .sendMemberReq(req.body.churchId, member.username)
+      .then(church => {
+        console.log("register", church);
+      })
+      .catch(err => {
+        console.log("Could not request");
+      });
 
   console.log(newMemb);
+  
   newMemb
     .save()
     .then(() => {
@@ -79,10 +86,12 @@ router.post("/regMemb", (req, res) => {
       return newMemb.generateAuthToken();
     })
     .then(token => {
-      res.header("x-auth", token).json({ success: true, memb: newMemb, token, desig: "Member" });
+      res
+        .header("x-auth", token)
+        .json({ success: true, memb: newMemb, token, desig: "Member" });
     })
     .catch(e => {
-      res.status(400).json({success: false, errObj: e});
+      res.status(400).json({ success: false, errObj: e });
     });
 });
 
@@ -90,21 +99,26 @@ router.post("/regMemb", (req, res) => {
 router.post("/login", (req, res, next) => {
   const username = req.body.username;
   const password = req.body.password;
+  var currMemb;
   console.log("authLaed :", req.body);
 
-  Member.findOne({ username })
+  Member.findByCredentials(username, password)
     .then(memb => {
+      currMemb = memb;
       var churchId = memb.churchId;
-      if (!memb) throw { errNo: 5, mssg: "No User found" };
       if (!churchId) return Promise.resolve({ church: undefined, memb });
-      return Church.findByCredentials(churchId, username, password);
+      return Church
+        .findByCredentials(churchId, username);
     })
     .then(({ church, memb }) => {
       console.log("fin CHurch", church);
       console.log(memb);
       if (church && !memb) {
-        church
-          .generateAuthToken(username)
+        currMemb
+          .generateAuthToken()
+          .then(token => {
+            return church.pushToken(token);
+          })
           .then(token => {
             res
               .header("x-auth", token)
@@ -120,15 +134,13 @@ router.post("/login", (req, res, next) => {
             return memb
               .generateAuthToken()
               .then(token => {
-                res
-                  .header("x-auth", token)
-                  .send({
-                    success: true,
-                    memb,
-                    desig: "Member",
-                    token,
-                    church
-                  });
+                res.header("x-auth", token).send({
+                  success: true,
+                  memb,
+                  desig: "Member",
+                  token,
+                  church
+                });
               })
               .catch(err => {
                 console.log("Error generating TOken2");
@@ -146,12 +158,12 @@ router.post("/login", (req, res, next) => {
 });
 
 // Profile
-router.get("/church", authLead, (req, res, next) => {
+router.get("/churchPro", authLead, (req, res, next) => {
   res.json({ church: req.church });
 });
 
 // Send member
-router.get("/member", authMemb, (req, res) => {
+router.get("/memberPro", authMemb, (req, res) => {
   if (req.memb.churchId) {
     Church.findOne({ churchId: req.memb.churchId })
       .then(church => {
@@ -217,18 +229,15 @@ router.post("/checkUname", (req, res) => {
     });
 });
 
-
 // TO DOs
-router.delete('/deleteMemb', authMemb, (req, res) => {
-// Dont' delete if leader at index of church
+router.delete("/deleteMemb", authMemb, (req, res) => {
+  // Dont' delete if leader at index of church
 });
 
-router.delete('/deleteChurch', authLead, (req, res) => {
-
+router.delete("/deleteChurch", authLead, (req, res) => {
+  
 });
 
-router.post('/newLeaderReq', (req, res) => {
-
-});
+router.post("/newLeaderReq", (req, res) => {});
 
 module.exports = router;

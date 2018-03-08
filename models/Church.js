@@ -17,17 +17,15 @@ var ChurchSchema = new mongoose.Schema({
     required: true,
     trim: true,
     minlength: 6,
-    unique: true
-    // Under Construction.....
-    // validate: [
-    //     validator: ^[a-z0-9_-]{3,15}$,
-    //     message: '{value} is not valid id'
-    // ]
+    unique: true,
+    validate: {
+      validator: function(v) {
+        return /^[a-zA-Z\-]+$/.test(v);
+      },
+      message: "{VALUE} is not a valid id!"
+    }
   },
-  proPic: {
-    data: Buffer,
-    contentType: String
-  },
+  proPic: String,
   tokens: [
     {
       access: {
@@ -47,10 +45,10 @@ var ChurchSchema = new mongoose.Schema({
         minlength: 6,
         required: true
       },
-      password: {
+      type: {
         type: String,
         required: true,
-        minlength: 6
+        default: "Secondary"
       }
     }
   ],
@@ -77,7 +75,7 @@ var ChurchSchema = new mongoose.Schema({
       },
       desig: {
         type: String,
-        default: "member"
+        default: "Member"
       }
     }
   ],
@@ -109,10 +107,6 @@ var ChurchSchema = new mongoose.Schema({
       }
     }
   ]
-  // Coming soon....
-  // image: {
-  //     type:
-  // }
 });
 
 ChurchSchema.methods.toJSON = function() {
@@ -124,63 +118,23 @@ ChurchSchema.methods.toJSON = function() {
     "churchId",
     "members",
     "families",
-    "followers"
+    "followers",
+    "requests",
+    "proPic"
   ]);
 
+  newObject.leaders = [];
   for (let i = 0; i < userObject.leaders.length; i++) {
-    if (newObject.leaders) {
-      newObject.leaders.push(
-        _.pick(userObject.leaders[i], ["leadId", "leadName", "_id"])
-      );
-    } else {
-      newObject.leaders = [
-        _.pick(userObject.leaders[i], ["leadId", "leadName", "_id"])
-      ];
-    }
+    newObject.leaders.push(_.pick(userObject.leaders[i], ["leadId", "type"]));
   }
-
   return newObject;
 };
 
-// TOken Generation
-ChurchSchema.methods.generateAuthToken = function(leadId) {
+// add Token
+ChurchSchema.methods.pushToken = function(token) {
   var church = this;
-  var access = "auth";
-  console.log("gen auth", church.leaders);
-  index = church.leaders.findIndex(lead => lead.leadId == leadId);
 
-  console.log(index, "index");
-  var token = jwt
-    .sign(
-      {
-        _cId: church.churchId,
-        _id: church.leaders[index]._id,
-        username: church.leaders[index].leadId,
-        access
-      },
-      process.env.SECRET || db.secret
-    )
-    .toString();
-
-  console.log("token", token, church);
-  church.tokens.push({ access, token });
-
-  console.log(church);
-  Member.findOne({ username: leadId })
-    .then(memb => {
-      memb.tokens.push({ access, token });
-      memb
-        .save()
-        .then(doc => {
-          console.log("Saved token to member", doc);
-        })
-        .catch(e => {
-          console.log("Unable to svae token to member");
-        });
-    })
-    .catch(e => {
-      console.log("Unable to find memb 2 token to member");
-    });
+  church.tokens.push({ access: "auth", token });
 
   return church.save().then(() => {
     console.log("token saved");
@@ -212,7 +166,7 @@ ChurchSchema.statics.findByToken = function(token) {
   }
 
   return Church.findOne({
-    churchId: decoded._cId,
+    "leaders.leadId": decoded.username,
     "leaders._id": decoded._id,
     "tokens.token": token,
     "tokens.access": "auth"
@@ -220,137 +174,353 @@ ChurchSchema.statics.findByToken = function(token) {
 };
 
 // Find leader
-ChurchSchema.statics.findByCredentials = function(
-  churchId,
-  username,
-  password
- ) {
+ChurchSchema.statics.findByCredentials = function(churchId, username) {
   var Church = this;
 
   return Church.findOne({ churchId }).then(church => {
     if (!church) {
       console.log("Rejected");
-      return Promise.reject({success: false, errNo: 0, mssg: "No such Church found" });
-    }
-
-    var index = church.leaders.findIndex(lead => lead.leadId == username);
-    var ind = church.members.findIndex(memb => memb.username == username);
-
-    if (index == -1 && ind == -1) {
-      return Promise.reject({ success: false, errNo: 1, mssg: "Neither leader nor member" });
-    } else if (ind != -1) {
-      return Promise.resolve({ church: church, memb: church.members[ind] });
-    }
-
-    console.log("index", index, ind, password);
-
-    return new Promise((resolve, reject) => {
-      console.log("Leaders ", church.leaders[index].password);
-
-      // Use bcrypt.compare to compare password and user.password
-      bcrypt.compare(password, church.leaders[index].password, (err, res) => {
-        if (res) {
-          resolve({ church, memb: undefined });
-        } else {
-          console.log("Rejected2");
-          reject({ success: false, errNo: 4, mssg: "Incorrect Password" });
-        }
+      return Promise.reject({
+        success: false,
+        errNo: 0,
+        mssg: "No such Church found"
       });
-    });
+    }
+
+    var churchInd = church.leaders.findIndex(lead => lead.leadId == username);
+    var membInd = church.members.indexOf(username);
+
+    if (churchInd == -1 && membInd == -1) {
+      return Promise.reject({
+        success: false,
+        errNo: 1,
+        mssg: "Neither leader nor member"
+      });
+    } else if (membInd > -1) {
+      return Promise.resolve({ church, memb: church.members[membInd] });
+    } else if (churchInd > -1) {
+      return Promise.resolve({ church, memb: undefined });
+    }
   });
 };
 
-ChurchSchema.statics.hashPassword = function(password) {
-  return new Promise((resolve, reject) => {
-    return bcrypt.genSalt(10, (err, salt) => {
-      bcrypt.hash(password, salt, (err, hash) => {
-        resolve(hash);
-      });
-    });
-  });
-};
-
-ChurchSchema.statics.addAsMember = function(churchId, member) {
+// Queries
+// Member
+ChurchSchema.query.sendMemberReq = function(churchId, username) {
   var Church = this;
 
+  return Member.findOneAndUpdate(
+    { username },
+    {
+      $set: {
+        pendingMemb: churchId
+      }
+    }
+  ).then(d => {
+    return Church.findOneAndUpdate(
+      { churchId },
+      {
+        $push: {
+          requests: username
+        }
+      }
+    );
+  });
+};
+
+ChurchSchema.query.handleMembReq = function(churchId, username, approval) {
+  var Church = this;
+  if (approval) {
+    Member.findOneAndUpdate(
+      { username },
+      {
+        $unset: {
+          pendingMemb: ""
+        },
+        $push: {
+          churchId
+        }
+      }
+    ).then(d => {
+      return Church.findOneAndUpdate(
+        { churchId },
+        {
+          $pull: {
+            requests: { username }
+          },
+          $push: {
+            members: username
+          }
+        }
+      );
+    });
+  } else {
+    Member.findOneAndUpdate(
+      { username },
+      {
+        $unset: {
+          pendingMemb: ""
+        }
+      }
+    ).then(d => {
+      return Church.findOneAndUpdate(
+        { churchId },
+        {
+          $pull: {
+            requests: { username }
+          }
+        }
+      );
+    });
+  }
+};
+
+ChurchSchema.query.cancelMembReq = function(churchId, username) {
+  var Church = this;
+  Member.findOneAndUpdate(
+    { username },
+    {
+      $unset: {
+        pendingMemb: ""
+      }
+    }
+  ).then(d => {
+    return Church.findOneAndUpdate(
+      { churchId },
+      {
+        $pull: {
+          requests: { username }
+        }
+      }
+    );
+  });
+};
+
+ChurchSchema.query.unmember = function(churchId, username) {
+  var Church = this;
+  Member.findOneAndUpdate(
+    { username },
+    {
+      $unset: {
+        churchId: ""
+      }
+    }
+  ).then(d => {
+    return Church.findOneAndUpdate(
+      { churchId },
+      {
+        $pull: {
+          members: username
+        }
+      }
+    );
+  });
+};
+
+// handles Leader Requests construction
+ChurchSchema.query.addAsLeader = function(churchId, username, approval) {
+  var Church = this;
+  // Add array token to church
   return Church.findOneAndUpdate(
     { churchId },
     {
       $push: {
-        requests: member
+        leaders: { leadId: username }
       }
-    });
-}
+    }
+  );
+};
 
-ChurchSchema.query.membReq = function(churchId, username, approval) {
-  var Church = this;
+ChurchSchema.query.removeLeader = function(username, churchId) {};
 
-  if(approval) {
-    return Church.findOneAndUpdate({churchId}, {
-      $pull: {
-        requests : { username }
-      },
-      $push : {
-        members : username
-      }
-    })
-  } else {
-    return Church.findOneAndUpdate({churchId}, {
-      $pull: {
-        requests : { username }
-      }
-    })
-  }
-}
+ChurchSchema.query.promoteLeader = function() {};
 
-ChurchSchema.query.LeadReq = function(churchId, username, approval) {
-  var Church = this;
-
-  if(approval) {
-    return Church.findOneAndUpdate({churchId}, {
-      $pull: {
-        requests : { username }
-      },
-      $push : {
-        leaders : {username}
-      }
-    })
-  } else {
-    return Church.findOneAndUpdate({churchId}, {
-      $pull: {
-        requests : { username }
-      }
-    })
-  }
-}
-
+// New Family
 ChurchSchema.query.addNewFly = function(churchId, newFly) {
   var Church = this;
-  return Church.findOneAndUpdate({churchId}, {
-    $push : {
-      families: newFly
+  return Church.findOneAndUpdate(
+    { churchId },
+    {
+      $push: {
+        families: newFly
+      }
     }
-  })
-}
+  );
+};
+
+// Followers
+ChurchSchema.query.sendfollowReq = function(username, churchId) {
+  var Church = this;
+  return Member.findOneAndUpdate(
+    { username },
+    {
+      $push: {
+        pendingReq: {
+          id: churchId,
+          type: "Church"
+        }
+      }
+    }
+  ).then(d => {
+    return Church.findOneAndUpdate(
+      { churchId },
+      {
+        $push: {
+          requests: username
+        }
+      }
+    );
+  });
+};
+
+ChurchSchema.query.handlefollowReq = function(username, churchId, approval) {
+  var Church = this;
+  if (approval) {
+    return Member.findOneAndUpdate(
+      { username },
+      {
+        $pull: {
+          pendingReq: { id: churchId }
+        },
+        $push: {
+          following: churchId
+        }
+      }
+    ).then(d => {
+      return Church.findOneAndUpdate(
+        { churchId },
+        {
+          $pull: {
+            requests: username
+          },
+          $push: {
+            followers: username
+          }
+        }
+      );
+    });
+  } else {
+    return Member.findOneAndUpdate(
+      { username },
+      {
+        $pull: {
+          pendingReq: { id: churchId }
+        }
+      }
+    ).then(d => {
+      return Church.findOneAndUpdate(
+        { churchId },
+        {
+          $pull: {
+            requests: username
+          }
+        }
+      );
+    });
+  }
+};
+
+ChurchSchema.query.cancelfollowReq = function(username, churchId) {
+  var Church = this;
+  return Member.findOneAndUpdate(
+    { username },
+    {
+      $pull: {
+        pendingReq: { id: churchId }
+      }
+    }
+  ).then(d => {
+    return Church.findOneAndUpdate(
+      { churchId },
+      {
+        $pull: {
+          requests: username
+        }
+      }
+    );
+  });
+};
+
+ChurchSchema.query.unfollow = function(username, churchId) {
+  var Church = this;
+  return Member.findOneAndUpdate(
+    { username },
+    {
+      $pull: {
+        following: churchId
+      }
+    }
+  ).then(d => {
+    return Church.findOneAndUpdate(
+      { churchId },
+      {
+        $pull: {
+          followers: username
+        }
+      }
+    );
+  });
+};
+
+// Get Info
+ChurchSchema.query.getInfoFollowers = function(churchId) {
+  var Church = this;
+  return Church.findOne({ churchId })
+    .select("followers")
+    .then(doc => {
+      return Member.find({
+        username: {
+          $in: doc.followers
+        }
+      }).select("name username proPic");
+    });
+};
+
+ChurchSchema.query.getInfoLeaders = function(churchId) {
+  var Church = this;
+  return Church.findOne({ churchId })
+    .select("leaders")
+    .then(doc => {
+      var leaders = doc.leaders.map(o => o.leadId);
+      return Member.find({
+        username: {
+          $in: leaders
+        }
+      }).select("name username proPic");
+    });
+};
+
+ChurchSchema.query.getInfoMembers = function(churchId) {
+  var Church = this;
+  return Church.findOne({ churchId })
+    .select("members")
+    .then(doc => {
+      return Member.find({
+        username: {
+          $in: doc.members
+        }
+      }).select("name username proPic");
+    });
+};
+
+// under construction
+ChurchSchema.query.getDetails = function(churchId, username) {
+  var Church = this;
+  var church;
+  Church.findOne({ churchId })
+    .select("churchName proPic churchId followers members leaders")
+    .then(doc => {
+      church = _.pick(doc, ["churchName", "proPic", "churchId"]);
+      church.noOfLeaders = doc.leaders.length;
+      church.noOfFollowers = doc.followers.length;
+      church.noOfMembers = doc.members.length;
+      // if username is leader or member all
+      // if follower type followers and global
+      // else just global
+      return Church.find({ churchId });
+    });
+};
 
 var Church = mongoose.model("church", ChurchSchema);
 
 module.exports = Church;
-
-
-
-// Hashing Password before Saving
-// ChurchSchema.pre("save", function(next) {
-//   var church = this;
-
-//   if (church.isModified("password")) {
-//     bcrypt.genSalt(10, (err, salt) => {
-//       bcrypt.hash(church.password, salt, (err, hash) => {
-//         church.password = hash;
-//         next();
-//       });
-//     });
-//   } else {
-//     next();
-//   }
-// });

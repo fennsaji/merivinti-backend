@@ -18,12 +18,15 @@ var MemberSchema = new mongoose.Schema({
     minlength: 6,
     required: true,
     unique: true,
-    trim: true
+    trim: true,
+    validate: {
+      validator: function(v) {
+        return /^[a-zA-Z\-]+$/.test(v);
+      },
+      message: "{VALUE} is not a valid id!"
+    }
   },
-  proPic: {
-    data: Buffer,
-    contentType: String
-  },
+  proPic: String,
   churchId: {
     type: String,
     minlength: 6,
@@ -55,6 +58,13 @@ var MemberSchema = new mongoose.Schema({
     minlength: 6,
     required: true
   },
+  pendingMemb: String,
+  pendingReq: [
+    {
+      id: String,
+      type: String
+    }
+  ],
   tokens: [
     {
       access: {
@@ -74,13 +84,13 @@ MemberSchema.methods.toJSON = function() {
   var membObject = memb.toObject();
 
   return _.pick(membObject, [
-    "_id",
     "name",
     "username",
     "churchId",
     "following",
     "friends",
-    "requests"
+    "requests",
+    "proPic"
   ]);
 };
 
@@ -127,6 +137,7 @@ MemberSchema.statics.findByToken = function(token) {
   }
 
   return Memb.findOne({
+    _id: decoded._id,
     username: decoded.username,
     "tokens.token": token,
     "tokens.access": "auth"
@@ -138,7 +149,11 @@ MemberSchema.statics.findByCredentials = function(username, password) {
 
   return Memb.findOne({ username }).then(memb => {
     if (!memb) {
-      return Promise.reject({success: false, errNo: 7, mssg: "User not found" });
+      return Promise.reject({
+        success: false,
+        errNo: 7,
+        mssg: "User not found"
+      });
     }
 
     return new Promise((resolve, reject) => {
@@ -147,7 +162,7 @@ MemberSchema.statics.findByCredentials = function(username, password) {
         if (res) {
           resolve(memb);
         } else {
-          reject({success: false, errNo: 6, mssg: "Incorrect Password" });
+          reject({ success: false, errNo: 6, mssg: "Incorrect Password" });
         }
       });
     });
@@ -156,27 +171,137 @@ MemberSchema.statics.findByCredentials = function(username, password) {
 
 MemberSchema.query.getInfoFriends = function(username) {
   var Memb = this;
-  return Memb.findOne({usename})
-    .select('friends')
+  return Memb.findOne({ usename })
+    .select("friends")
     .then(doc => {
       return Memb.find()
-        .where('username')
+        .where("username")
         .in(doc.friends)
-        .select('name username proPic');
-    })
-}
+        .select("name username proPic");
+    });
+};
 
 MemberSchema.query.getInfoFollowings = function(username) {
   var Memb = this;
-  return Memb.findOne({usename})
-    .select('following')
+  return Memb.findOne({ username })
+    .select("following")
     .then(doc => {
       return Church.find()
-        .where('username')
+        .where("username")
         .in(doc.following)
-        .select('name username proPic');
-    })
-}
+        .select("name username proPic");
+    });
+};
+
+MemberSchema.query.sendFriendReq = function(username, friendId) {
+  var Memb = this;
+  return Memb.findOneAndUpdate(
+    { username },
+    {
+      $push: {
+        pendingReq: { id: friendId, type: "Friend" }
+      }
+    }
+  ).then(d => {
+    return Memb.findOneAndUpdate(
+      { username: friendId },
+      {
+        $push: {
+          requests: username
+        }
+      }
+    );
+  });
+};
+
+MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
+  var Memb = this;
+  if (approval) {
+    return Memb.findOneAndUpdate(
+      { username: friendId },
+      {
+        $pull: {
+          pendingReq: { id: username }
+        },
+        $push: {
+          friends: username
+        }
+      }
+    ).then(d => {
+      return Memb.findOneAndUpdate(
+        { username },
+        {
+          $pull: {
+            requests: friendId
+          },
+          $push: {
+            friends: friendId
+          }
+        }
+      );
+    });
+  } else {
+    return Memb.findOneAndUpdate(
+      { username: friendId },
+      {
+        $pull: {
+          pendingReq: { id: username }
+        }
+      }
+    ).then(d => {
+      return Memb.findOneAndUpdate(
+        { username },
+        {
+          $pull: {
+            requests: friendId
+          }
+        }
+      );
+    });
+  }
+};
+
+MemberSchema.query.cancelFriendReq = function(username, friendId) {
+  var Memb = this;
+  return Memb.findOneAndUpdate(
+    { username: friendId },
+    {
+      $pull: {
+        pendingReq: { id: username }
+      }
+    }
+  ).then(d => {
+    return Memb.findOneAndUpdate(
+      { username },
+      {
+        $pull: {
+          requests: friendId
+        }
+      }
+    );
+  });
+};
+
+MemberSchema.query.unfriend = function(username, friendId) {
+  var Memb = this;
+  return Memb.findOneAndUpdate(
+    { username: friendId },
+    {
+      $pull: {
+        friends: username
+      }
+    }
+  ).then(d => {
+    return Memb.findOneAndUpdate(
+      { username },
+      {
+        $pull: {
+          friends: friendId
+        }
+      }
+    );
+  });
+};
 
 MemberSchema.pre("save", function(next) {
   var memb = this;

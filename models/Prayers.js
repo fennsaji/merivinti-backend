@@ -36,7 +36,6 @@ var PrayerSchema = new mongoose.Schema({
     }
 });
 
-
 PrayerSchema.methods.toJSON = function () {
     var pr = this;
     var prObject = pr.toObject();
@@ -45,8 +44,10 @@ PrayerSchema.methods.toJSON = function () {
       ['_id', 'username', 'churchId', 'body', 'date', 'shareWith']);
 };
 
+// add Names to array
 PrayerSchema.query.allPr = function(username){
     var Pr = this;
+    var followers = [];
     return Member
         .findOne({username})
         .select('friends churchId following')
@@ -67,16 +68,17 @@ PrayerSchema.query.allPr = function(username){
         .then(d => {
             console.log(d);
             for(let i in d) {
-                console.log('obj', i, d[i], username);
-                username.push(...d[i].leaders.map(o => o.leadId));
-                username.push(...d[i].members);
-                console.log('username', username);
+                console.log('obj', i, d[i], followers);
+                followers.push(...d[i].leaders.map(o => o.leadId));
+                followers.push(...d[i].members);
+                console.log('username', followers);
             }
-            username = Array.from(new Set(username));
-            console.log('username', username);
-            return username;
+            followers = Array.from(new Set(followers));
+            console.log('followers', followers);
+            return followers;
         })
-        .then(username => {
+        .then(followers => {
+            console.log(username);
             return Pr.find({
                 $or: [{
                     username: {
@@ -93,8 +95,9 @@ PrayerSchema.query.allPr = function(username){
                 },{
                     type: 'global'
                 }]
-            }).sort('-date')
-                .limit(30);
+            })
+            .sort('-date')
+            .limit(30);
             });;
 };
 
@@ -105,9 +108,10 @@ PrayerSchema.query.byDate = function(username, date) {
         .findOne({username})
         .select('friends churchId following')
         .then(doc => {
-            username = doc.friends.map(o => o.username);
+            // username = doc.friends.map(o => o.username);
+            username.push(...doc.friends);
             var churchIds = [doc.churchId];
-            churchIds.push(...doc.following.map(o => o.churchId));
+            churchIds.push(...doc.following);
             console.log('Document11', doc);
             console.log('Doc', churchIds);
             return Church
@@ -119,21 +123,34 @@ PrayerSchema.query.byDate = function(username, date) {
         })
         .then(d => {
             console.log(d);
+            var followers = [];
             for(let i in d) {
                 console.log('obj', i);
-                username.push(...d[i].leaders.map(o => o.leadId));
-                username.push(...d[i].members.map(o => o.username));
+                followers.push(...d[i].leaders.map(o => o.leadId));
+                followers.push(...d[i].members);
             }
-            username = Array.from(new Set(username));
-            console.log('username', username);
-            return username;
+            followers = Array.from(new Set(followers));
+            console.log('username', followers);
+            return followers;
         })
-        .then(username => {
+        .then(followers => {
             console.log('date', date);
             return Pr.find({
-                username: {
-                    $in: username
-                }
+                $or: [{
+                    username: {
+                        $in: username
+                    }
+                },{ 
+                    $and: [{
+                        username: {
+                            $in: followers
+                        }
+                    },{
+                        type: 'followers'
+                    }]
+                },{
+                    type: 'global'
+                }]
             })
             .where('date').gt(date)
             .sort('-date')
