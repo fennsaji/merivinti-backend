@@ -6,6 +6,7 @@ const _ = require("lodash");
 
 const db = require("../config/database");
 const Church = require("./Church");
+const Prayer = require("./Prayers");
 
 var MemberSchema = new mongoose.Schema({
   name: {
@@ -21,7 +22,7 @@ var MemberSchema = new mongoose.Schema({
     trim: true,
     validate: {
       validator: function(v) {
-        return /^[a-zA-Z\-]+$/.test(v);
+        return /^[a-zA-Z0-9\-]+$/.test(v);
       },
       message: "{VALUE} is not a valid id!"
     }
@@ -62,7 +63,10 @@ var MemberSchema = new mongoose.Schema({
   pendingReq: [
     {
       id: String,
-      type: String
+      type: {
+        type: String,
+        default: "Church"
+      }
     }
   ],
   tokens: [
@@ -90,7 +94,9 @@ MemberSchema.methods.toJSON = function() {
     "following",
     "friends",
     "requests",
-    "proPic"
+    "proPic",
+    "pendingReq",
+    "pendingMemb"
   ]);
 };
 
@@ -169,6 +175,40 @@ MemberSchema.statics.findByCredentials = function(username, password) {
   });
 };
 
+MemberSchema.query.getDetails = function(username, myusername, mychurch) {
+  var Memb = this;
+  var member;
+  return Memb.findOne({username})
+    .select('proPic username name churchId following friends')
+    .then(doc => {
+      if(!doc) {
+        throw "Error";
+      }
+      console.log('1', doc);
+      member = _.pick(doc , ["proPic", "username", "name", "churchId"]);
+      member.noOfFriends = doc.friends.length;
+      member.noOfFollowing = doc.following.length;
+      console.log('2');
+      var friendInd = doc.friends.indexOf(myusername);
+      var followInd = doc.following.indexOf(mychurch);
+      console.log('1', friendInd, followInd);
+      if(friendInd > -1 || (mychurch === doc.churchId) || username === myusername) {
+        console.log('1');
+        return Prayer.find({username});
+      } else if(followInd > -1){
+        console.log('2');
+        return Prayer.find({username})
+          .where('type').equals('followers');
+      } else {
+        console.log('3');
+        return Prayer.find({username})
+         .where('type').equals('global');
+      }
+    }).then(prayerReq => {
+      return {member, prayerReq}
+    });
+}
+
 MemberSchema.query.getInfoFriends = function(username) {
   var Memb = this;
   return Memb.findOne({ usename })
@@ -195,15 +235,18 @@ MemberSchema.query.getInfoFollowings = function(username) {
 
 MemberSchema.query.sendFriendReq = function(username, friendId) {
   var Memb = this;
+  console.log(username, friendId);
   return Memb.findOneAndUpdate(
-    { username },
+    { username: username },
     {
       $push: {
         pendingReq: { id: friendId, type: "Friend" }
       }
     }
-  ).then(d => {
-    return Memb.findOneAndUpdate(
+  )
+  .then(d => {
+    console.log('123');
+    return Member.findOneAndUpdate(
       { username: friendId },
       {
         $push: {
@@ -216,9 +259,11 @@ MemberSchema.query.sendFriendReq = function(username, friendId) {
 
 MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
   var Memb = this;
+  console.log(username, friendId, approval);
   if (approval) {
+    console.log('123');
     return Memb.findOneAndUpdate(
-      { username: friendId },
+      { username:  friendId},
       {
         $pull: {
           pendingReq: { id: username }
@@ -228,7 +273,8 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
         }
       }
     ).then(d => {
-      return Memb.findOneAndUpdate(
+      console.log('123');
+      return Member.findOneAndUpdate(
         { username },
         {
           $pull: {
@@ -241,6 +287,7 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
       );
     });
   } else {
+    console.log('123');
     return Memb.findOneAndUpdate(
       { username: friendId },
       {
@@ -249,7 +296,8 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
         }
       }
     ).then(d => {
-      return Memb.findOneAndUpdate(
+      console.log('123');
+      return Member.findOneAndUpdate(
         { username },
         {
           $pull: {
@@ -264,18 +312,18 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
 MemberSchema.query.cancelFriendReq = function(username, friendId) {
   var Memb = this;
   return Memb.findOneAndUpdate(
-    { username: friendId },
+    { username },
     {
       $pull: {
-        pendingReq: { id: username }
+        pendingReq: { id: friendId }
       }
     }
   ).then(d => {
-    return Memb.findOneAndUpdate(
-      { username },
+    return Member.findOneAndUpdate(
+      { username: friendId },
       {
         $pull: {
-          requests: friendId
+          requests: username
         }
       }
     );
@@ -292,7 +340,7 @@ MemberSchema.query.unfriend = function(username, friendId) {
       }
     }
   ).then(d => {
-    return Memb.findOneAndUpdate(
+    return Member.findOneAndUpdate(
       { username },
       {
         $pull: {
@@ -302,6 +350,62 @@ MemberSchema.query.unfriend = function(username, friendId) {
     );
   });
 };
+
+MemberSchema.query.search = function(query, username) {
+  var Memb = this;
+  var results = [];
+  return Memb.find({
+    $or: [
+      {
+        username: new RegExp("^" + query ,"i")
+      },
+      {
+        name: new RegExp("^" + query ,"i")
+      }
+    ],
+    username: {$ne: username}
+  }).select('name username proPic')
+  .limit(20)
+  .then(res => {
+    results = res;
+    return Memb.find({
+      $or: [
+        {
+          username: new RegExp(".*" + query + ".*", "i")
+  
+        },
+        {
+          name: new RegExp(".*" + query + ".*", "i")
+        }
+      ],
+      username: {$ne: username}
+    }).select('name username proPic')
+    .limit(20);
+  }).then(res => {
+    results.push(...res);
+    console.log(results);
+    results = results.filter((doc, index, self) => 
+      index === self.findIndex((d) => (d.username === doc.username))
+    )
+    console.log(results);
+    return results.slice();
+  });
+}
+
+MemberSchema.query.getBasicInfo = function(membArr) {
+  var Memb = this;
+  return Memb.find({
+    username: {
+      $in: membArr
+    }
+  }).select('proPic username name');
+}
+
+MemberSchema.query.getfriends = function(username) {
+  var Memb = this;
+  return Memb.findOne({username})
+    .select('friends pendingReq pendingMemb requests following');
+}
 
 MemberSchema.pre("save", function(next) {
   var memb = this;

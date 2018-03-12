@@ -1,20 +1,24 @@
-const { authLead, authMemb } = require("../config/auth");
-const Church = require("../models/Church");
-const Member = require("../models/Member");
+const { authLead, authMemb } = require("../../config/auth");
+const Church = require("../../models/Church");
+const Member = require("../../models/Member");
 const express = require("express");
-
 const router = express.Router();
 
-// Get Details 
-router.get('mychurch', authMemb, (req, res) => {
+// Get Details
+router.get("mychurch", authMemb, (req, res) => {});
 
-});
 router.post("/getDetails", authMemb, (req, res) => {
   // If member or follower sen
   Church.find()
     .getDetails(req.body.churchId, req.memb.username)
-    .then()
-    .catch();
+    .then(({church, prayerReq}) => {
+      console.log('church', church, prayerReq);
+      church.noOfPost = prayerReq.length;
+      res.json({success: true, church, prayerReq})
+    })
+    .catch(err => {
+      res.status(400).json({success: false, err})
+    });
 });
 
 router.post("/getInfoMembers", authMemb, (req, res) => {
@@ -41,7 +45,7 @@ router.post("/getInfoFollowers", authMemb, (req, res) => {
     });
 });
 
-router.post('/getInfoLeaders', authMemb, (req, res) => {
+router.post("/getInfoLeaders", authMemb, (req, res) => {
   var churchId = req.body.churchId;
   Church.find()
     .getInfoLeaders(username)
@@ -59,57 +63,56 @@ router.post("/followReq", authMemb, (req, res) => {
   Church.find()
     .sendfollowReq(req.memb.username, req.body.churchId)
     .then(doc => {
-      res.json({success: true});
+      res.json({ success: true });
     })
     .catch(e => {
-      res.status(400).json({success: false});
+      res.status(400).json({ success: false });
     });
 });
 
 router.post("/handlefollowReq", authLead, (req, res) => {
   Church.find()
-  .handlefollowReq(req.memb.username, req.body.churchId, req.body.approval)
-  .then(doc => {
-    res.json({success: true});
-  })
-  .catch(e => {
-    res.status(400).json({success: false});
-  });
+    .handlefollowReq(req.memb.username, req.body.churchId, req.body.approval)
+    .then(doc => {
+      res.json({ success: true });
+    })
+    .catch(e => {
+      res.status(400).json({ success: false });
+    });
 });
 
 router.post("/cancelfollowReq", authMemb, (req, res) => {
   Church.find()
-  .cancelfollowReq(req.memb.username, req.body.churchId)
-  .then(doc => {
-    res.json({success: true});
-  })
-  .catch(e => {
-    res.status(400).json({success: false});
-  });
+    .cancelfollowReq(req.memb.username, req.body.churchId)
+    .then(doc => {
+      res.json({ success: true });
+    })
+    .catch(e => {
+      res.status(400).json({ success: false });
+    });
 });
 
 router.delete("/unfollow", authMemb, (req, res) => {
   Church.find()
-  .unfollow(req.memb.username, req.body.churchId)
-  .then(doc => {
-    res.json({success: true});
-  })
-  .catch(e => {
-    res.status(400).json({success: false});
-  });
+    .unfollow(req.memb.username, req.body.churchId)
+    .then(doc => {
+      res.json({ success: true });
+    })
+    .catch(e => {
+      res.status(400).json({ success: false });
+    });
 });
 
 router.delete("removefollower", authLead, (req, res) => {
   Church.find()
-  .unfollow(req.body.username, req.church.churchId)
-  .then(doc => {
-    res.json({success: true});
-  })
-  .catch(e => {
-    res.status(400).json({success: false});
-  });
+    .unfollow(req.body.username, req.church.churchId)
+    .then(doc => {
+      res.json({ success: true });
+    })
+    .catch(e => {
+      res.status(400).json({ success: false });
+    });
 });
-
 
 // Members
 router.post("/sendMembReq", authMemb, (req, res) => {
@@ -120,7 +123,7 @@ router.post("/sendMembReq", authMemb, (req, res) => {
       errMsg: "Already a member of a church"
     });
   }
-  
+
   Church.addAsMember(req.body.churchId, req.memb.username)
     .then(church => {
       console.log("register", church);
@@ -189,7 +192,6 @@ router.delete("/removeMember", authLead, (req, res) => {
     });
 });
 
-
 // Under Construction Leader
 router.post("/addAsLeader", authLead, (req, res) => {
   var username = req.body.username;
@@ -208,9 +210,7 @@ router.delete("/removeLeader", authLead, (req, res) => {
   // Don't remove leader of type Head
 });
 
-router.post('/promoteLeader', (req, res) => {
-
-});
+router.post("/promoteLeader", (req, res) => {});
 
 router.post("/addFamiliy", authLead, (req, res) => {
   var newfly = req.body;
@@ -228,6 +228,16 @@ router.post("/addFamiliy", authLead, (req, res) => {
 
 router.put("/updatePro", authLead, (req, res) => {});
 
-router.post("/search", (req, res) => {});
+router.post("/search", authMemb, (req, res) => {
+    Church.find()
+      .search(req.body.search)
+      .then(churches => {
+        console.log('123',churches);
+        res.json({ success: true, churches });
+      })
+      .catch(err => {
+        res.status(400).json({ success: false, err });
+      });
+});
 
 module.exports = router;

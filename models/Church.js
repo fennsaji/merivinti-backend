@@ -5,6 +5,7 @@ const _ = require("lodash");
 const bcrypt = require("bcryptjs");
 const db = require("../config/database");
 const Member = require("./Member");
+const Prayer = require("./Prayers");
 
 var ChurchSchema = new mongoose.Schema({
   churchName: {
@@ -120,13 +121,10 @@ ChurchSchema.methods.toJSON = function() {
     "families",
     "followers",
     "requests",
-    "proPic"
+    "proPic",
+    "leaders"
   ]);
 
-  newObject.leaders = [];
-  for (let i = 0; i < userObject.leaders.length; i++) {
-    newObject.leaders.push(_.pick(userObject.leaders[i], ["leadId", "type"]));
-  }
   return newObject;
 };
 
@@ -507,19 +505,100 @@ ChurchSchema.query.getInfoMembers = function(churchId) {
 ChurchSchema.query.getDetails = function(churchId, username) {
   var Church = this;
   var church;
-  Church.findOne({ churchId })
+  console.log('2');
+  return Church.findOne({ churchId })
     .select("churchName proPic churchId followers members leaders")
     .then(doc => {
+      console.log('2', doc);
+      if(!doc) {
+        throw "Error";
+      }
       church = _.pick(doc, ["churchName", "proPic", "churchId"]);
+      console.log('2');
       church.noOfLeaders = doc.leaders.length;
       church.noOfFollowers = doc.followers.length;
       church.noOfMembers = doc.members.length;
+      var leadInd = doc.leaders.findIndex(d => username === d.leadId);
+      console.log('2');
+      var membInd = doc.members.indexOf(username);
+      var follInd = doc.followers.indexOf(username);
+      console.log(leadInd, membInd, follInd);
+
       // if username is leader or member all
       // if follower type followers and global
       // else just global
-      return Church.find({ churchId });
+      if(leadInd > -1 || membInd > -1 ) {
+        return Prayer.find({ churchId });
+      } else if(follInd > -1 ){
+        return Prayer.find({churchId})
+          .where('type').equals('followers');
+      } else {
+        console.log('run', churchId);
+        return Prayer.find({churchId})
+          .where('type').equals('global');
+      }
+    })
+    .then(prayerReq => {
+      console.log('1234');
+      console.log(prayerReq);
+      console.log('1', church);
+      return {church, prayerReq};
     });
 };
+
+ChurchSchema.query.search = function(query) {
+  var Church = this;
+  var results = [];
+  console.log('church', query);
+  return Church.find({
+    $or: [
+      {
+        churchName: new RegExp("^" + query , "i")
+
+      },
+      {
+        churchId: new RegExp("^" + query , "i")
+      }
+    ]
+  }).select('churchName churchId proPic')
+  .limit(20)
+  .then(res => {
+    results = res;
+    console.log('church', results);
+    return Church.find({
+      $or: [
+        {
+          churchId: new RegExp(".*" + query + ".*","i")
+  
+        },
+        {
+          churchName: new RegExp(".*" + query + ".*","i")
+        }
+      ]
+    }).select('churchName churchId proPic')
+    .limit(20);
+  }).then(res => {
+    console.log('church', res);
+    results.push(...res);
+    console.log('church', results);
+    results = results.filter((doc, index, self) => 
+      index === self.findIndex((d) => (d.churchId === doc.churchId))
+    )
+    return results;
+  });
+};
+
+ChurchSchema.query.getMembs = function(churchIds) {
+  var Church = this;
+  return Church
+    .find(
+        {
+        churchId : {
+            $in : churchIds
+        }}
+    )
+    .select('members leaders.leadId');
+}
 
 var Church = mongoose.model("church", ChurchSchema);
 

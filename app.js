@@ -39,6 +39,18 @@ app.use('/auth', authenticate);
 const prayers = require("./routes/prayers");
 app.use('/prayer', prayers);
 
+// Routes for church profile
+const church = require("./routes/profile/church");
+app.use('/church', church);
+
+// Routes for member profile
+const member = require("./routes/profile/member");
+app.use('/member', member);
+
+// Routes for owner
+const owner = require("./routes/profile/owner");
+app.use('/owner', owner);
+
 // Listening port
 server.listen(port, ()=> {
     console.log(`Connected to port ${port}`);

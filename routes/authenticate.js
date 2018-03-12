@@ -49,10 +49,10 @@ router.post("/regChurch", (req, res) => {
     .then(token => {
       res.header("x-auth", token).json({
         success: true,
-        church: newChurch,
+        churchId: newChurch.churchId,
         token,
         desig: "Leader",
-        memb: newMemb
+        username: newMemb.username
       });
     })
     .catch(err => {
@@ -88,7 +88,7 @@ router.post("/regMemb", (req, res) => {
     .then(token => {
       res
         .header("x-auth", token)
-        .json({ success: true, memb: newMemb, token, desig: "Member" });
+        .json({ success: true, username: newMemb.username, token, desig: "Member" });
     })
     .catch(e => {
       res.status(400).json({ success: false, errObj: e });
@@ -120,9 +120,16 @@ router.post("/login", (req, res, next) => {
             return church.pushToken(token);
           })
           .then(token => {
+            console
+            .log(church, currMemb);
             res
               .header("x-auth", token)
-              .json({ success: true, church, desig: "Leader", token, memb });
+              .json({ success: true, 
+                churchId: church.churchId, 
+                desig: "Leader", 
+                token, 
+                username: currMemb.username 
+              });
           })
           .catch(err => {
             console.log("Error generating TOken1");
@@ -134,12 +141,14 @@ router.post("/login", (req, res, next) => {
             return memb
               .generateAuthToken()
               .then(token => {
+                churchId = church? church.churchId : null;
+                console.log('genrate token',token);
                 res.header("x-auth", token).send({
                   success: true,
-                  memb,
+                  username: memb.username,
                   desig: "Member",
                   token,
-                  church
+                  churchId
                 });
               })
               .catch(err => {
