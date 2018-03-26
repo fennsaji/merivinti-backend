@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const http = require('http');
 const db = require('./config/database');
+const fs = require('fs');
 
 const port = process.env.PORT || 8080;
 
@@ -57,4 +58,9 @@ app.use('/owner', owner);
 // Listening port
 server.listen(port, ()=> {
     console.log(`Connected to port ${port}`);
+    fs.writeFile('test.txt', 'This ia as', (err) => {
+        if(err)
+        console.log('error');
+        console.log('DOne');
+    })
 });
