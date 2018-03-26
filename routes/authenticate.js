@@ -9,8 +9,6 @@ const assests = require("../config/assests");
 
 const router = express.Router();
 
-
-
 // Church leader
 // // Register
 router.post("/regChurch", (req, res) => {
@@ -21,14 +19,14 @@ router.post("/regChurch", (req, res) => {
   ]);
   newChurchbody.proPic = assests.defaultPic;
   newChurchbody.leaders.type = "main";
-  newChurchbody.isLeader = true;
   var newChurch;
   var newMembBody = {
     proPic: assests.defaultPic,
     name: req.body.leaders.leadName,
     username: req.body.leaders.leadId,
     churchId: req.body.churchId,
-    password: req.body.leaders.password
+    password: req.body.leaders.password,
+    isLeader: true
   };
   console.log("1", newMembBody);
   var newMemb = new Member(newMembBody);
