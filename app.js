@@ -14,6 +14,7 @@ mongoose.Promise = global.Promise;
 mongoose.connect(process.env.MONGODB || db.database, (err) => {
     if(!err) {
         console.log("Connected to Mongo");
+
     }
   })
   .catch(err => {
