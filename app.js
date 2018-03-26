@@ -4,6 +4,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const http = require('http');
+if(process.env.NODE_ENV)
 const db = require('./config/database');
 
 const port = process.env.PORT || 8080;
