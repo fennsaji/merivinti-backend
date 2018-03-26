@@ -1,5 +1,5 @@
 const express = require('express');
-const socketIO = require('socket.io');
+// const socketIO = require('socket.io');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
