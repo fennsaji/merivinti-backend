@@ -6,14 +6,11 @@ const _ = require("lodash");
 var PrayerSchema = new mongoose.Schema({
   username: {
     type: String,
-    minlength: 6,
     required: true,
     trim: true
   },
   churchId: {
     type: String,
-    minlength: 6,
-    required: true,
     trim: true
   },
   date: {
@@ -33,6 +30,10 @@ var PrayerSchema = new mongoose.Schema({
     type: String,
     minlength: 3,
     required: true
+  },
+  reports: {
+    type: Number,
+    default: 0
   }
 });
 
@@ -46,7 +47,8 @@ PrayerSchema.methods.toJSON = function() {
     "churchId",
     "body",
     "date",
-    "shareWith"
+    "shareWith",
+    "reports"
   ]);
 };
 
@@ -104,34 +106,35 @@ PrayerSchema.query.allPr = function(username, Church, Member) {
       }
       followers = Array.from(new Set(followers));
       console.log("followers", followers);
-      return Member.find()
-        .getBasicInfo([...username,...followers]);
-    //   return followers;
-    })
-    .then(bU => {
-      basicInfo = bU;
-      console.log('bu', basicInfo)
-      console.log(username);
+    //   return Member.find()
+    //     .getBasicInfo([...username,...followers]);
+    // //   return followers;
+    // })
+    // .then(bU => {
+    //   basicInfo = bU;
+    //   console.log('bu', basicInfo)
+    //   console.log(username);
       return Pr.find()
         .getPr(username, followers)
         .sort("-date")
-        .limit(30);
-    }).then(prayers => {
-        // prayers.map(pr => {
-        //     console.log('pr', pr, basicUsers[0]);
-        //     var ind = basicUsers.findIndex(bu => {
-        //         return pr.username === bu.username;
-        //     });
-        //     console.log(ind);
-        //     pr = { ...basicUsers[ind],...pr._doc}
-        //     console.log('pr1', pr._doc);
-        //     return pr;
-        // });
-        // pr = {...basicUsers[0],...prayers[0]}
-        // prayers[0].name= 'Fenn'
-        // console.log('pr1', prayers[0]);
-        return {prayers, basicInfo};
+        .limit(40);
     });
+    // .then(prayers => {
+    //     // prayers.map(pr => {
+    //     //     console.log('pr', pr, basicUsers[0]);
+    //     //     var ind = basicUsers.findIndex(bu => {
+    //     //         return pr.username === bu.username;
+    //     //     });
+    //     //     console.log(ind);
+    //     //     pr = { ...basicUsers[ind],...pr._doc}
+    //     //     console.log('pr1', pr._doc);
+    //     //     return pr;
+    //     // });
+    //     // pr = {...basicUsers[0],...prayers[0]}
+    //     // prayers[0].name= 'Fenn'
+    //     // console.log('pr1', prayers[0]);
+    //     return {prayers, basicInfo};
+    // });
 };
 
 PrayerSchema.query.byDate = function(username, date, Church, Member) {
@@ -168,12 +171,12 @@ PrayerSchema.query.byDate = function(username, date, Church, Member) {
       followers = Array.from(new Set(followers));
       console.log("username", followers);
     //   return followers;
-    return Member.find()
-        .getBasicInfo([...username,...followers]);
-    })
-    .then(bI => {
-        basicInfo = bI;
-      console.log("date", date);
+    // return Member.find()
+    //     .getBasicInfo([...username,...followers]);
+    // })
+    // .then(bI => {
+    //     basicInfo = bI;
+    //   console.log("date", date);
       return Pr.find()
         .getPr(username, followers)
         .where("date")
@@ -181,19 +184,19 @@ PrayerSchema.query.byDate = function(username, date, Church, Member) {
         .sort("-date")
         .limit(15);
     })
-    .then(prayers => {
-        console.log('yae');
-        return {prayers, basicInfo};
-    });
+    // .then(prayers => {
+    //     console.log('yae');
+    //     return {prayers, basicInfo};
+    // });
 };
 
 PrayerSchema.query.verifyAndDeletePr = function(id, username, churchId) {
   var Pr = this;
   console.log(id, username, churchId);
-  return Pr.findById(id).then(pr => {
+  return Pr.findOne({_id: id}).then(pr => {
     if (pr.username == username) {
       console.log(pr);
-      return Pr.findByIdAndRemove(id);
+      return Pr.findOneAndRemove({_id: id});
     } else if (churchId) {
       return Church.find({ churchId })
         .select("leaders.leadId")

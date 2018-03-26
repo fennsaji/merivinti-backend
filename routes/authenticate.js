@@ -1,11 +1,15 @@
 const express = require("express");
 const _ = require("lodash");
+const {saveImage} = require('../config/assests');
 
 const { authLead, authMemb } = require("../config/auth");
 const Church = require("../models/Church");
 const Member = require("../models/Member");
+const assests = require("../config/assests");
 
 const router = express.Router();
+
+
 
 // Church leader
 // // Register
@@ -13,13 +17,14 @@ router.post("/regChurch", (req, res) => {
   var newChurchbody = _.pick(req.body, [
     "churchName",
     "churchId",
-    "leaders.leadId",
-    "proPic"
+    "leaders.leadId"
   ]);
+  newChurchbody.proPic = assests.defaultPic;
   newChurchbody.leaders.type = "main";
+  newChurchbody.isLeader = true;
   var newChurch;
   var newMembBody = {
-    proPic: req.body.proPic,
+    proPic: assests.defaultPic,
     name: req.body.leaders.leadName,
     username: req.body.leaders.leadId,
     churchId: req.body.churchId,
@@ -33,12 +38,14 @@ router.post("/regChurch", (req, res) => {
     .save()
     .then(doc1 => {
       newMemb = doc1;
+      saveImage(newMemb.proPic, newMemb.username);
+      console.log("3", newChurchbody);
       newChurch = new Church(newChurchbody);
-      console.log("3", newChurch);
       return newChurch.save();
     })
     .then(doc2 => {
       newChurch = doc2;
+      saveImage(newChurch.proPic, newChurch.churchId);
       console.log("4", newChurch);
       return newMemb.generateAuthToken();
     })
@@ -63,32 +70,33 @@ router.post("/regChurch", (req, res) => {
 // Church Member
 // register Member
 router.post("/regMemb", (req, res) => {
-  var body = _.pick(req.body, ["name", "username", "password", "proPic"]);
-  var newMemb = new Member(body);
-
-  var member = _.pick(req.body, ["username"]);
-  
-    Church.find()
-      .sendMemberReq(req.body.churchId, member.username)
-      .then(church => {
-        console.log("register", church);
-      })
-      .catch(err => {
-        console.log("Could not request");
-      });
-
+  var body = _.pick(req.body, ["name", "username", "password"]);
+  body.proPic = assests.defaultPic;
+  var newMemb;
+  var churchId = req.body.churchId;
   console.log(newMemb);
-  
-  newMemb
-    .save()
+  var member = _.pick(req.body, ["username"]);
+
+  Church.findOneAndUpdate({ churchId }, { $push: { requests: member } })
+    .then(doc => {
+      if (doc) {
+        body.pendingMemb = doc.churchId;
+      }
+      newMemb = new Member(body);
+      return newMemb.save();
+    })
     .then(() => {
       console.log("saved", newMemb);
+      saveImage(newMemb.proPic, newMemb.username);
       return newMemb.generateAuthToken();
     })
     .then(token => {
-      res
-        .header("x-auth", token)
-        .json({ success: true, username: newMemb.username, token, desig: "Member" });
+      res.header("x-auth", token).json({
+        success: true,
+        username: newMemb.username,
+        token,
+        desig: "Member"
+      });
     })
     .catch(e => {
       res.status(400).json({ success: false, errObj: e });
@@ -105,10 +113,10 @@ router.post("/login", (req, res, next) => {
   Member.findByCredentials(username, password)
     .then(memb => {
       currMemb = memb;
+      console.log('current memb', memb);
       var churchId = memb.churchId;
       if (!churchId) return Promise.resolve({ church: undefined, memb });
-      return Church
-        .findByCredentials(churchId, username);
+      return Church.findByCredentials(churchId, username);
     })
     .then(({ church, memb }) => {
       console.log("fin CHurch", church);
@@ -117,22 +125,22 @@ router.post("/login", (req, res, next) => {
         currMemb
           .generateAuthToken()
           .then(token => {
+            console.log(token, 'token');
             return church.pushToken(token);
           })
           .then(token => {
-            console
-            .log(church, currMemb);
-            res
-              .header("x-auth", token)
-              .json({ success: true, 
-                churchId: church.churchId, 
-                desig: "Leader", 
-                token, 
-                username: currMemb.username 
-              });
+            console.log('church123', church,'memeber223', token);
+            res.header("x-auth", token).json({
+              success: true,
+              churchId: church.churchId,
+              desig: "Leader",
+              token,
+              username: currMemb.username
+            });
           })
           .catch(err => {
             console.log("Error generating TOken1");
+            res.status(400).json({ success: false, msgObj: err });
           });
       } else if (memb) {
         console.log(memb);
@@ -141,8 +149,8 @@ router.post("/login", (req, res, next) => {
             return memb
               .generateAuthToken()
               .then(token => {
-                churchId = church? church.churchId : null;
-                console.log('genrate token',token);
+                churchId = church ? church.churchId : null;
+                console.log("genrate token", token);
                 res.header("x-auth", token).send({
                   success: true,
                   username: memb.username,
@@ -243,9 +251,7 @@ router.delete("/deleteMemb", authMemb, (req, res) => {
   // Dont' delete if leader at index of church
 });
 
-router.delete("/deleteChurch", authLead, (req, res) => {
-  
-});
+router.delete("/deleteChurch", authLead, (req, res) => {});
 
 router.post("/newLeaderReq", (req, res) => {});
 

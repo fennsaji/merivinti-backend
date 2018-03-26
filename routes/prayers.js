@@ -7,7 +7,7 @@ const Member = require("../models/Member")
 const router = express.Router();
 
 router.post("/addNew", authMemb, (req, res) => {
-  let newPrayer = new Prayer(req.body);
+  let newPrayer = new Prayer(req.body.newPr);
   console.log(req.body);
   newPrayer
     .save()
@@ -24,9 +24,9 @@ router.post("/addNew", authMemb, (req, res) => {
 router.get("/getAllPr", authMemb, (req, res) => {
   Prayer.find()
     .allPr([req.memb.username], Church, Member)
-    .then(({prayers, basicInfo}) => {
-      console.log(prayers, basicInfo)
-      res.json({ prayers, basicInfo });
+    .then((prayers) => {
+      console.log(prayers)
+      res.json({ prayers });
     })
     .catch(err => {
       res.status(400).json({ err });
@@ -37,15 +37,15 @@ router.post("/getByDate", authMemb, (req, res) => {
   console.log(req.body.date, req.memb.username);
   Prayer.find()
     .byDate([req.memb.username], req.body.date, Church, Member)
-    .then(({prayers, basicInfo}) => {
-      res.json({ prayers, basicInfo });
+    .then((prayers) => {
+      res.json({ prayers });
     })
     .catch(err => {
       res.status(400).json({ err });
     });
 });
 
-router.delete("/deletePr", authMemb, (req, res) => {
+router.post("/deletePr", authMemb, (req, res) => {
   Prayer.find()
     .verifyAndDeletePr(req.body.id, req.memb.username, req.memb.churchId)
     .then(doc => {

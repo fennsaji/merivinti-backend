@@ -27,7 +27,15 @@ var MemberSchema = new mongoose.Schema({
       message: "{VALUE} is not a valid id!"
     }
   },
-  proPic: String,
+  proPic: {
+    type: String,
+    required: true
+  },
+  email: String,
+  emailVerified: {
+    type: Boolean,
+    default: false
+  },
   churchId: {
     type: String,
     minlength: 6,
@@ -59,6 +67,10 @@ var MemberSchema = new mongoose.Schema({
     minlength: 6,
     required: true
   },
+  isLeader: {
+    type: Boolean,
+    default: false
+  },
   pendingMemb: String,
   pendingReq: [
     {
@@ -69,6 +81,17 @@ var MemberSchema = new mongoose.Schema({
       }
     }
   ],
+  newNotifications: {
+    type: Number,
+    default: 0
+  },
+  notifications: [{
+    who: String,
+    by: String,
+    proPic: String,
+    body: String,
+    date: Date
+  }],
   tokens: [
     {
       access: {
@@ -89,6 +112,7 @@ MemberSchema.methods.toJSON = function() {
 
   return _.pick(membObject, [
     "name",
+    "isLeader",
     "username",
     "churchId",
     "following",
@@ -96,13 +120,16 @@ MemberSchema.methods.toJSON = function() {
     "requests",
     "proPic",
     "pendingReq",
-    "pendingMemb"
+    "pendingMemb",
+    "newNotifications",
+    "notifications"
   ]);
 };
 
 MemberSchema.methods.generateAuthToken = function() {
   var memb = this;
   var access = "auth";
+  console.log('123');
   var token = jwt
     .sign(
       {
@@ -113,9 +140,10 @@ MemberSchema.methods.generateAuthToken = function() {
       process.env.SECRET || db.secret
     )
     .toString();
-
+    console.log('123');
   memb.tokens.push({ access, token });
   return memb.save().then(() => {
+    console.log('123');
     return token;
   });
 };
@@ -178,14 +206,16 @@ MemberSchema.statics.findByCredentials = function(username, password) {
 MemberSchema.query.getDetails = function(username, myusername, mychurch) {
   var Memb = this;
   var member;
+  console.log(username, mychurch, myusername);
   return Memb.findOne({username})
-    .select('proPic username name churchId following friends')
+    .select('proPic username name isLeader churchId following friends')
     .then(doc => {
+      console.log('1', doc);
       if(!doc) {
         throw "Error";
       }
       console.log('1', doc);
-      member = _.pick(doc , ["proPic", "username", "name", "churchId"]);
+      member = _.pick(doc , ["proPic", "isLeader", "username", "name", "churchId"]);
       member.noOfFriends = doc.friends.length;
       member.noOfFollowing = doc.following.length;
       console.log('2');
@@ -209,9 +239,21 @@ MemberSchema.query.getDetails = function(username, myusername, mychurch) {
     });
 }
 
+MemberSchema.query.updateProfile = function(username, updatedPro) {
+  var Memb = this;
+
+  console.log(username, updatedPro);
+  return Memb.findOneAndUpdate({username},{
+    $set: {
+      name: updatedPro.name,
+      proPic: updatedPro.proPic
+    }
+  })
+};
+
 MemberSchema.query.getInfoFriends = function(username) {
   var Memb = this;
-  return Memb.findOne({ usename })
+  return Memb.findOne({ username })
     .select("friends")
     .then(doc => {
       return Memb.find()
@@ -221,21 +263,27 @@ MemberSchema.query.getInfoFriends = function(username) {
     });
 };
 
-MemberSchema.query.getInfoFollowings = function(username) {
+MemberSchema.query.getInfoFollowings = function(username, Church) {
   var Memb = this;
   return Memb.findOne({ username })
     .select("following")
     .then(doc => {
       return Church.find()
-        .where("username")
+        .where("churchId")
         .in(doc.following)
-        .select("name username proPic");
+        .select("churchName churchId proPic");
     });
 };
 
 MemberSchema.query.sendFriendReq = function(username, friendId) {
   var Memb = this;
   console.log(username, friendId);
+  // newNotification = {
+  //   who: username,
+  //   by: 'user',
+  //   body: "send you friend request",
+  //   date: new Date()
+  // }
   return Memb.findOneAndUpdate(
     { username: username },
     {
@@ -251,6 +299,9 @@ MemberSchema.query.sendFriendReq = function(username, friendId) {
       {
         $push: {
           requests: username
+        },
+        $inc : {
+          newNotifications: 1
         }
       }
     );
@@ -261,6 +312,12 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
   var Memb = this;
   console.log(username, friendId, approval);
   if (approval) {
+    newNotification = {
+      who: username,
+      by: 'user',
+      body: "accepted your friend request",
+      date: new Date()
+    }
     console.log('123');
     return Memb.findOneAndUpdate(
       { username:  friendId},
@@ -269,7 +326,11 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
           pendingReq: { id: username }
         },
         $push: {
-          friends: username
+          friends: username,
+          notifications: newNotification
+        },
+        $inc : {
+          newNotifications: 1
         }
       }
     ).then(d => {
@@ -401,10 +462,49 @@ MemberSchema.query.getBasicInfo = function(membArr) {
   }).select('proPic username name');
 }
 
-MemberSchema.query.getfriends = function(username) {
+MemberSchema.query.getbasicdetails = function(username) {
   var Memb = this;
   return Memb.findOne({username})
-    .select('friends pendingReq pendingMemb requests following');
+    .select('name proPic isLeader churchId friends pendingReq pendingMemb requests following newNotifications');
+}
+
+MemberSchema.query.getNotificatiions = function(username) {
+  var Memb = this;
+  return Memb.findOne({username})
+    .select('notifications requests');
+}
+
+// MemberSchema.query.pushNotifications = function(username, newNotification) {
+//   var Member = this;
+
+//   return Member.findOneAndUpdate({username}, {
+//     $push : {
+//       notifications: newNotification
+//     },
+//     $inc: {
+//       newNotifications : 1
+//     }
+//   });
+// }
+
+MemberSchema.query.addNewNotify = function(username) {
+  var Member = this;
+
+  return Member.findOneAndUpdate({username}, {
+    $inc: {
+      newNotifications : 1
+    }
+  });
+}
+
+MemberSchema.query.clearNewNotify = function(username) {
+  var Member = this;
+
+  return Member.findOneAndUpdate({username}, {
+    $set: {
+      newNotifications : 0
+    }
+  });
 }
 
 MemberSchema.pre("save", function(next) {

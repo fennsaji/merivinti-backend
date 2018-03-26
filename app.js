@@ -25,6 +25,8 @@ var app = express();
 // Middleware for interprocess communication
 app.use(cors());
 
+app.use(express.static(__dirname + '/public'));
+
 // Body Parser Middleware
 app.use(bodyParser.json());
 
