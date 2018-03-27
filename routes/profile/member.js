@@ -59,10 +59,10 @@ router.get('/getbasicinfo', authMemb, (req, res) => {
 
 router.get("/getNotifications", authMemb, (req, res) => {
   Member.find()
-    .getNotificatiions(req.memb.username)
-    .then(({list, basicInfo}) => {
+    .getNotificatiions(req.memb.username, Church)
+    .then(({list, basicInfo, churchInfo}) => {
       console.log('1234567', list, basicInfo)
-      res.json({success: true, list, basicInfo})
+      res.json({success: true, list, basicInfo, churchInfo})
     })
     .catch(err => {
       res.status(400).json({success: false, errOnj: err});

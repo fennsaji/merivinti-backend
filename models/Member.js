@@ -473,16 +473,55 @@ MemberSchema.query.getbasicdetails = function(username) {
     .select('name proPic isLeader churchId friends pendingReq pendingMemb requests following newNotifications');
 }
 
-MemberSchema.query.getNotificatiions = function(username) {
+MemberSchema.query.getNotificatiions = function(username, Church) {
   var Memb = this;
   var list;
+  var basicInfo;
+  var churches = [];
   return Memb.findOne({username})
     .select('notifications requests')
     .then(doc => {
       list = doc;
-      return Member.find().getBasicInfo(doc.requests)
-    }).then(basicInfo => {
-      return {list, basicInfo};
+      // console.log(doc.notifications);
+      if(doc.notifications.length >= 20) {
+        var diff = doc.notifications.length - 20;
+        doc.notifications = doc.notifications.splice(diff, doc.notifications.length);
+        Member.findOneAndUpdate({username}, {
+          $unset: {
+            notifications: []
+          },
+          $set: {
+            notifications: doc.notifications
+          }
+        })
+      }
+      var usersNotify = doc.notifications.filter(o => {
+        // console.log('o', o)
+        if(o.by == 'user') {
+          return true;
+        }
+      })
+      var users = usersNotify.map(o => o.who);
+      // console.log('users', users);
+      var churchesNotify = doc.notifications.filter(o => {
+        if(o.by == 'church') {
+          return true;
+        }
+      })
+      churches = churchesNotify.map(o => o.who)
+      console.log('churches', churches);
+      return Member.find().getBasicInfo([...doc.requests, ...users])
+    }).then(bI => {
+      basicInfo = bI;
+      console.log('info', basicInfo);
+      return Church.find({
+        churchId: {
+          $in: churches
+        }
+      }).select('churchName churchId proPic')
+    }).then( churchInfo => {
+      console.log('lisss', list, basicInfo, churchInfo);
+      return {list, basicInfo, churchInfo};
     });
 }
 
