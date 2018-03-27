@@ -60,8 +60,9 @@ router.get('/getbasicinfo', authMemb, (req, res) => {
 router.get("/getNotifications", authMemb, (req, res) => {
   Member.find()
     .getNotificatiions(req.memb.username)
-    .then(list => {
-      res.json({success: true, list})
+    .then(({list, basicInfo}) => {
+      console.log('1234567', list, basicInfo)
+      res.json({success: true, list, basicInfo})
     })
     .catch(err => {
       res.status(400).json({success: false, errOnj: err});
@@ -104,7 +105,7 @@ router.post("/handleFriendReq", authMemb, (req, res) => {
   var friendId = req.body.username;
   var approval = req.body.approval;
   Member.find()
-    .handleFriendReq(username, friendId, approval)
+    .handleFriendReq(username, friendId, approval, req.body.proPic)
     .then(d => {
       res.json({ success: true });
     })
@@ -145,7 +146,7 @@ router.put("/updatePro", authMemb, (req, res) => {
   Member.find()
     .updateProfile(req.memb.username, updatedPro)
     .then(d => {
-      saveImage(updatedPro.proPic, req.memb.username);
+      // saveImage(updatedPro.proPic, req.memb.username);
       res.json({ success: true });
     })
     .catch(errObj => {
@@ -164,7 +165,13 @@ router.post("/search", authMemb, (req, res) => {
     });
 });
 
-
+router.post("/getProfilePic", authMemb, (req, res) => {
+  Member.findOne({username: req.body.username})
+    .select('proPic')
+    .then(d => {
+       res.json({proPic: d.proPic});
+    })
+})
 
 
 module.exports = router;

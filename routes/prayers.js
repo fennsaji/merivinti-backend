@@ -24,9 +24,9 @@ router.post("/addNew", authMemb, (req, res) => {
 router.get("/getAllPr", authMemb, (req, res) => {
   Prayer.find()
     .allPr([req.memb.username], Church, Member)
-    .then((prayers) => {
+    .then(({prayers, basicInfo}) => {
       console.log(prayers)
-      res.json({ prayers });
+      res.json({ prayers, basicInfo });
     })
     .catch(err => {
       res.status(400).json({ err });
@@ -37,8 +37,8 @@ router.post("/getByDate", authMemb, (req, res) => {
   console.log(req.body.date, req.memb.username);
   Prayer.find()
     .byDate([req.memb.username], req.body.date, Church, Member)
-    .then((prayers) => {
-      res.json({ prayers });
+    .then(({prayers, basicInfo}) => {
+      res.json({ prayers, basicInfo });
     })
     .catch(err => {
       res.status(400).json({ err });

@@ -206,10 +206,13 @@ MemberSchema.statics.findByCredentials = function(username, password) {
 MemberSchema.query.getDetails = function(username, myusername, mychurch) {
   var Memb = this;
   var member;
+  var prayerReq;
+  var doc;
   console.log(username, mychurch, myusername);
   return Memb.findOne({username})
     .select('proPic username name isLeader churchId following friends')
-    .then(doc => {
+    .then(d => {
+      doc = d;
       console.log('1', doc);
       if(!doc) {
         throw "Error";
@@ -234,7 +237,8 @@ MemberSchema.query.getDetails = function(username, myusername, mychurch) {
         return Prayer.find({username})
          .where('type').equals('global');
       }
-    }).then(prayerReq => {
+    }).then(pR => {
+      prayerReq = pR;
       return {member, prayerReq}
     });
 }
@@ -308,12 +312,13 @@ MemberSchema.query.sendFriendReq = function(username, friendId) {
   });
 };
 
-MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
+MemberSchema.query.handleFriendReq = function(username, friendId, approval, proPic) {
   var Memb = this;
   console.log(username, friendId, approval);
   if (approval) {
     newNotification = {
       who: username,
+      proPic,
       by: 'user',
       body: "accepted your friend request",
       date: new Date()
@@ -470,8 +475,15 @@ MemberSchema.query.getbasicdetails = function(username) {
 
 MemberSchema.query.getNotificatiions = function(username) {
   var Memb = this;
+  var list;
   return Memb.findOne({username})
-    .select('notifications requests');
+    .select('notifications requests')
+    .then(doc => {
+      list = doc;
+      return Member.find().getBasicInfo(doc.requests)
+    }).then(basicInfo => {
+      return {list, basicInfo};
+    });
 }
 
 // MemberSchema.query.pushNotifications = function(username, newNotification) {

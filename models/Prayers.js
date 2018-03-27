@@ -106,35 +106,35 @@ PrayerSchema.query.allPr = function(username, Church, Member) {
       }
       followers = Array.from(new Set(followers));
       console.log("followers", followers);
-    //   return Member.find()
-    //     .getBasicInfo([...username,...followers]);
-    // //   return followers;
-    // })
-    // .then(bU => {
-    //   basicInfo = bU;
-    //   console.log('bu', basicInfo)
-    //   console.log(username);
+      return Member.find()
+        .getBasicInfo([...username,...followers]);
+    //   return followers;
+    })
+    .then(bU => {
+      basicInfo = bU;
+      console.log('bu', basicInfo)
+      console.log(username);
       return Pr.find()
         .getPr(username, followers)
         .sort("-date")
         .limit(40);
+    })
+    .then(prayers => {
+        // prayers.map(pr => {
+        //     console.log('pr', pr, basicUsers[0]);
+        //     var ind = basicUsers.findIndex(bu => {
+        //         return pr.username === bu.username;
+        //     });
+        //     console.log(ind);
+        //     pr = { ...basicUsers[ind],...pr._doc}
+        //     console.log('pr1', pr._doc);
+        //     return pr;
+        // });
+        // pr = {...basicUsers[0],...prayers[0]}
+        // prayers[0].name= 'Fenn'
+        // console.log('pr1', prayers[0]);
+        return {prayers, basicInfo};
     });
-    // .then(prayers => {
-    //     // prayers.map(pr => {
-    //     //     console.log('pr', pr, basicUsers[0]);
-    //     //     var ind = basicUsers.findIndex(bu => {
-    //     //         return pr.username === bu.username;
-    //     //     });
-    //     //     console.log(ind);
-    //     //     pr = { ...basicUsers[ind],...pr._doc}
-    //     //     console.log('pr1', pr._doc);
-    //     //     return pr;
-    //     // });
-    //     // pr = {...basicUsers[0],...prayers[0]}
-    //     // prayers[0].name= 'Fenn'
-    //     // console.log('pr1', prayers[0]);
-    //     return {prayers, basicInfo};
-    // });
 };
 
 PrayerSchema.query.byDate = function(username, date, Church, Member) {
@@ -170,13 +170,13 @@ PrayerSchema.query.byDate = function(username, date, Church, Member) {
       }
       followers = Array.from(new Set(followers));
       console.log("username", followers);
-    //   return followers;
-    // return Member.find()
-    //     .getBasicInfo([...username,...followers]);
-    // })
-    // .then(bI => {
-    //     basicInfo = bI;
-    //   console.log("date", date);
+      // return followers;
+    return Member.find()
+        .getBasicInfo([...username,...followers]);
+    })
+    .then(bI => {
+        basicInfo = bI;
+      console.log("date", date);
       return Pr.find()
         .getPr(username, followers)
         .where("date")
@@ -184,10 +184,10 @@ PrayerSchema.query.byDate = function(username, date, Church, Member) {
         .sort("-date")
         .limit(15);
     })
-    // .then(prayers => {
-    //     console.log('yae');
-    //     return {prayers, basicInfo};
-    // });
+    .then(prayers => {
+        console.log('yae');
+        return {prayers, basicInfo};
+    });
 };
 
 PrayerSchema.query.verifyAndDeletePr = function(id, username, churchId) {

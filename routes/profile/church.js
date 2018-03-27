@@ -13,11 +13,11 @@ router.post("/getDetails", authMemb, (req, res) => {
   // If member or follower sen
   Church.find()
     .getDetails(req.body.churchId, req.memb.username)
-    .then(({church, prayerReq }) => {
+    .then(({church, prayerReq, basicInfo }) => {
       console.log('123457777', church, prayerReq);
       church.noOfPost = prayerReq.length;
       console.log('chdaokdasjidj');
-      res.json({success: true, church, prayerReq})
+      res.json({success: true, church, prayerReq, basicInfo})
     })
     .catch(err => {
       console.log('asfa');
@@ -75,8 +75,8 @@ router.get('/getbasicinfo', authLead, (req, res) => {
 router.get('/getNotifications', authLead, (req, res) => {
   Church.find()
     .getNotifications(req.church.churchId)
-    .then(list => {
-      res.json({success: true, list})
+    .then(({list, basicInfo}) => {
+      res.json({success: true, list, basicInfo})
     })
     .catch(err => {
       res.status(400).json({success: false, errObj: err});
@@ -121,7 +121,7 @@ router.post("/followReq", authMemb, (req, res) => {
 
 router.post("/handlefollowReq", authLead, (req, res) => {
   Church.find()
-    .handlefollowReq(req.body.username, req.church.churchId, req.body.approval)
+    .handlefollowReq(req.body.username, req.church.churchId, req.body.approval, req.body.proPic)
     .then(doc => {
       res.json({ success: true });
     })
@@ -193,7 +193,7 @@ router.post("/sendMembReq", authMemb, (req, res) => {
 router.post("/handleMembReq", authLead, (req, res) => {
   var username = req.body.username;
   Church.find()
-    .handleMembReq(req.church.churchId, username, req.body.approval)
+    .handleMembReq(req.church.churchId, username, req.body.approval, req.body.proPic)
     .then(doc => {
       console.log(doc);
       res.json({ success: true, doc });
@@ -246,7 +246,7 @@ router.post("/removeMember", authLead, (req, res) => {
 router.post("/addAsLeader", authLead, (req, res) => {
   var username = req.body.username;
   Church.find()
-    .addAsLeader(req.church.churchId, username)
+    .addAsLeader(req.church.churchId, username, req.body.proPic)
     .then(doc => {
       console.log(doc);
       res.json({ success: true, doc });
@@ -256,7 +256,7 @@ router.post("/addAsLeader", authLead, (req, res) => {
     });
 });
 
-router.delete("/removeLeader", authLead, (req, res) => {
+router.post("/removeLeader", authLead, (req, res) => {
   // Don't remove leader of type Head
   var username = req.body.username;
   Church.find()
@@ -270,10 +270,10 @@ router.delete("/removeLeader", authLead, (req, res) => {
     });
 });
 
-router.post("/promoteLeader", (req, res) => {
+router.post("/promoteLeader", authLead, (req, res) => {
   var username = req.body.username;
   Church.find()
-    .promoteLeader(req.church.churchId, username)
+    .promoteLeader(req.church.churchId, username, req.body.proPic)
     .then(doc => {
       console.log(doc);
       res.json({ success: true, doc });
@@ -305,7 +305,7 @@ router.put("/updatePro", authLead, (req, res) => {
     .then(doc => {
       // console.log(doc);
       console.log('done savig');
-      saveImage(updated.proPic, req.church.churchId);
+      // saveImage(updated.proPic, req.church.churchId);
       res.json({ success: true, doc });
     })
     .catch(e => {
@@ -324,5 +324,14 @@ router.post("/search", authMemb, (req, res) => {
         res.status(400).json({ success: false, err });
       });
 });
+
+
+router.post("/getProfilePic", authMemb, (req, res) => {
+  Church.findOne({churchId: req.body.churchId})
+    .select('proPic')
+    .then(d => {
+       res.json({proPic: d.proPic});
+    })
+})
 
 module.exports = router;

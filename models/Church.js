@@ -122,7 +122,6 @@ ChurchSchema.methods.toJSON = function() {
   var newObject = _.pick(userObject, [
     "_id",
     "churchName",
- 
     "churchId",
     "members",
     "families",
@@ -244,10 +243,11 @@ ChurchSchema.query.sendMemberReq = function(churchId, username) {
   });
 };
 
-ChurchSchema.query.handleMembReq = function(churchId, username, approval) {
+ChurchSchema.query.handleMembReq = function(churchId, username, approval, proPic) {
   var Church = this;
   newNotification = {
     who: churchId,
+    proPic,
     by: 'church',
     body: "accepted you member request",
     date: new Date()
@@ -376,28 +376,48 @@ ChurchSchema.query.unmember = function(churchId, username) {
 };
 
 // handles Leader Requests construction
-ChurchSchema.query.addAsLeader = function(churchId, username, approval) {
+ChurchSchema.query.addAsLeader = function(churchId, username, proPic) {
   var Church = this;
+  newNotification = {
+    who: churchId,
+    proPic,
+    by: 'church',
+    body: "added you as Leader",
+    date: new Date()
+  }
   // Add array token to church
-  return Member.findOneAndUpdate({username}, {$set: {isLeader: true}})
-  .select('tokens')
-  .then(doc => {
-    return Church.findOneAndUpdate(
-      { churchId },
-      {
-        $push: {
-          leaders: { leadId: username },
-          tokens: doc.tokens
+  return Member.findOneAndUpdate({username}, {
+          $set: {isLeader: true},
+          $push: {
+            notifications: newNotification
+          },
+          $inc: {
+            newNotifications: 1
+          }
+    })
+    .select('tokens _id')
+    .then(doc => {
+      return Church.findOneAndUpdate(
+        { churchId },
+        {
+          $push: {
+            leaders: { leadId: username, _id: doc._id },
+            tokens: doc.tokens
+          },
+          $pull: {
+            members : username
+          }
         }
-      }
-    )
-  });
+      )
+    })
 };
 
-ChurchSchema.query.removeLeader = function(username, churchId) {
+ChurchSchema.query.removeLeader = function(churchId, username) {
   var Church = this;
+  console.log(churchId);
   return Church.findOne({churchId})
     .then(doc => {
+      console.log(username);
       var index = doc.leaders.findIndex(ele => ele.leadId === username);
       if(index > -1) {
         if(doc.leaders[index].type === 'Main') {
@@ -412,13 +432,31 @@ ChurchSchema.query.removeLeader = function(username, churchId) {
       } else {
         throw {errNo: 2, errMsg: 'No such leader found'};
       }
+    }).then(doc => {
+      return Member.findOneAndUpdate({username}, {
+        $set: {
+          isLeader: false
+        },
+        $unset: {
+          churchId: ""
+        }
+      })
     })
 };
 
 
 // add notification
-ChurchSchema.query.promoteLeader = function(username, churchId) {
+ChurchSchema.query.promoteLeader = function(churchId, username, proPic) {
   var Church = this;
+
+  console.log(churchId, username, proPic)
+  newNotification = {
+    who: churchId,
+    proPic,
+    by: 'church',
+    body: "promoted you as main Leader",
+    date: new Date()
+  }
 
   return Church.findOneAndUpdate({churchId}, {
     $pull: {
@@ -430,9 +468,19 @@ ChurchSchema.query.promoteLeader = function(username, churchId) {
     $push : {
       leaders: {
         leadId: username,
-        type: 'Main'
+        type: 'main'
       }
     }
+  }).then(doc => {
+    console.log('saved church00');  
+    return Member.findOneAndUpdate({username}, {
+      $push: {
+        notifications: newNotification
+      },
+      $inc: {
+        newNotifications: 1
+      }
+    })
   })
 };
 
@@ -489,12 +537,13 @@ ChurchSchema.query.sendfollowReq = function(username, churchId) {
 };
 
 // update his pr with churchId
-ChurchSchema.query.handlefollowReq = function(username, churchId, approval) {
+ChurchSchema.query.handlefollowReq = function(username, churchId, approval, proPic) {
   var Church = this;
 
   newNotification = {
     who: churchId,
     by: 'church',
+    proPic,
     body: "accepted your follow request",
     date: new Date()
   }
@@ -640,6 +689,7 @@ ChurchSchema.query.getDetails = function(churchId, username) {
   var church;
   var prayerReq;
   var usersArr;
+  var lead;
   console.log("2");
   return Church.findOne({ churchId })
     .select("churchName proPic churchId followers members leaders")
@@ -655,7 +705,7 @@ ChurchSchema.query.getDetails = function(churchId, username) {
       church.noOfFollowers = doc.followers.length;
       church.noOfMembers = doc.members.length;
       var leadInd = doc.leaders.findIndex(d => username === d.leadId);
-      var lead = doc.leaders.map(o => o.leadId);
+      lead = doc.leaders.map(o => o.leadId);
       var membInd = doc.members.indexOf(username);
       var follInd = doc.followers.indexOf(username);
       console.log(leadInd, membInd, follInd);
@@ -678,18 +728,20 @@ ChurchSchema.query.getDetails = function(churchId, username) {
     })
     .then(prReq => {
       prayerReq = prReq;
-      return {church, prayerReq};
+      // return {church, prayerReq};
+      return Member.find()
+      .getBasicInfo([...usersArr, ...lead]);
       // return Member.find()
       //   .getBasicInfo(usersArr);
     })
-    // .then(basicInfo => {
-    //   console.log("1234");
-    //   console.log(prayerReq);
-    //   console.log("1", church);
-    //   console.log("1", basicInfo);
+    .then(basicInfo => {
+      console.log("1234");
+      console.log(prayerReq);
+      console.log("1", church);
+      console.log("1", basicInfo);
 
-    //   return { church, prayerReq, basicInfo };
-    // });
+      return { church, prayerReq, basicInfo };
+    });
 };
 
 ChurchSchema.query.getbasicdetails = function(churchId) {
@@ -701,9 +753,19 @@ ChurchSchema.query.getbasicdetails = function(churchId) {
 
 ChurchSchema.query.getNotifications = function(churchId) {
   var Church = this;
+  var list;
+  console.log('churchiD',churchId);
   return Church.findOne({ churchId }).select(
-    "requests"
-  );
+    "requests")
+    .then(doc => {
+      console.log('requests', doc.requests);
+      req = doc.requests.map(o => o.username);
+      list = doc;
+      return Member.find().getBasicInfo(req)
+    }).then(basicInfo => {
+      console.log('notiyf', basicInfo, list);
+      return {list, basicInfo};
+    });
 };
 
 ChurchSchema.query.pushNotifications = function(churchId, newNotification) {

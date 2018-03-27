@@ -36,14 +36,14 @@ router.post("/regChurch", (req, res) => {
     .save()
     .then(doc1 => {
       newMemb = doc1;
-      saveImage(newMemb.proPic, newMemb.username);
+      // saveImage(newMemb.proPic, newMemb.username);
       console.log("3", newChurchbody);
       newChurch = new Church(newChurchbody);
       return newChurch.save();
     })
     .then(doc2 => {
       newChurch = doc2;
-      saveImage(newChurch.proPic, newChurch.churchId);
+      // saveImage(newChurch.proPic, newChurch.churchId);
       console.log("4", newChurch);
       return newMemb.generateAuthToken();
     })
@@ -85,7 +85,7 @@ router.post("/regMemb", (req, res) => {
     })
     .then(() => {
       console.log("saved", newMemb);
-      saveImage(newMemb.proPic, newMemb.username);
+      // saveImage(newMemb.proPic, newMemb.username);
       return newMemb.generateAuthToken();
     })
     .then(token => {
@@ -249,7 +249,9 @@ router.delete("/deleteMemb", authMemb, (req, res) => {
   // Dont' delete if leader at index of church
 });
 
-router.delete("/deleteChurch", authLead, (req, res) => {});
+router.delete("/deleteChurch", authLead, (req, res) => {
+  // 
+});
 
 router.post("/newLeaderReq", (req, res) => {});
 

@@ -58,9 +58,4 @@ app.use('/owner', owner);
 // Listening port
 server.listen(port, ()=> {
     console.log(`Connected to port ${port}`);
-    fs.writeFile('test.txt', 'This ia as', (err) => {
-        if(err)
-        console.log('error');
-        console.log('DOne');
-    })
 });
