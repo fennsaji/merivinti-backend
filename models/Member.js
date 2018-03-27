@@ -88,7 +88,6 @@ var MemberSchema = new mongoose.Schema({
   notifications: [{
     who: String,
     by: String,
-    proPic: String,
     body: String,
     date: Date
   }],
@@ -312,13 +311,12 @@ MemberSchema.query.sendFriendReq = function(username, friendId) {
   });
 };
 
-MemberSchema.query.handleFriendReq = function(username, friendId, approval, proPic) {
+MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
   var Memb = this;
   console.log(username, friendId, approval);
   if (approval) {
     newNotification = {
       who: username,
-      proPic,
       by: 'user',
       body: "accepted your friend request",
       date: new Date()

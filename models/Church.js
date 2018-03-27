@@ -243,11 +243,10 @@ ChurchSchema.query.sendMemberReq = function(churchId, username) {
   });
 };
 
-ChurchSchema.query.handleMembReq = function(churchId, username, approval, proPic) {
+ChurchSchema.query.handleMembReq = function(churchId, username, approval) {
   var Church = this;
   newNotification = {
     who: churchId,
-    proPic,
     by: 'church',
     body: "accepted you member request",
     date: new Date()
@@ -376,11 +375,10 @@ ChurchSchema.query.unmember = function(churchId, username) {
 };
 
 // handles Leader Requests construction
-ChurchSchema.query.addAsLeader = function(churchId, username, proPic) {
+ChurchSchema.query.addAsLeader = function(churchId, username) {
   var Church = this;
   newNotification = {
     who: churchId,
-    proPic,
     by: 'church',
     body: "added you as Leader",
     date: new Date()
@@ -446,13 +444,12 @@ ChurchSchema.query.removeLeader = function(churchId, username) {
 
 
 // add notification
-ChurchSchema.query.promoteLeader = function(churchId, username, proPic) {
+ChurchSchema.query.promoteLeader = function(churchId, username) {
   var Church = this;
 
-  console.log(churchId, username, proPic)
+  console.log(churchId, username)
   newNotification = {
     who: churchId,
-    proPic,
     by: 'church',
     body: "promoted you as main Leader",
     date: new Date()
@@ -537,13 +534,12 @@ ChurchSchema.query.sendfollowReq = function(username, churchId) {
 };
 
 // update his pr with churchId
-ChurchSchema.query.handlefollowReq = function(username, churchId, approval, proPic) {
+ChurchSchema.query.handlefollowReq = function(username, churchId, approval) {
   var Church = this;
 
   newNotification = {
     who: churchId,
     by: 'church',
-    proPic,
     body: "accepted your follow request",
     date: new Date()
   }

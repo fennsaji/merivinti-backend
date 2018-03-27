@@ -121,7 +121,7 @@ router.post("/followReq", authMemb, (req, res) => {
 
 router.post("/handlefollowReq", authLead, (req, res) => {
   Church.find()
-    .handlefollowReq(req.body.username, req.church.churchId, req.body.approval, req.body.proPic)
+    .handlefollowReq(req.body.username, req.church.churchId, req.body.approval)
     .then(doc => {
       res.json({ success: true });
     })
@@ -193,7 +193,7 @@ router.post("/sendMembReq", authMemb, (req, res) => {
 router.post("/handleMembReq", authLead, (req, res) => {
   var username = req.body.username;
   Church.find()
-    .handleMembReq(req.church.churchId, username, req.body.approval, req.body.proPic)
+    .handleMembReq(req.church.churchId, username, req.body.approval)
     .then(doc => {
       console.log(doc);
       res.json({ success: true, doc });
@@ -246,7 +246,7 @@ router.post("/removeMember", authLead, (req, res) => {
 router.post("/addAsLeader", authLead, (req, res) => {
   var username = req.body.username;
   Church.find()
-    .addAsLeader(req.church.churchId, username, req.body.proPic)
+    .addAsLeader(req.church.churchId, username)
     .then(doc => {
       console.log(doc);
       res.json({ success: true, doc });
@@ -273,7 +273,7 @@ router.post("/removeLeader", authLead, (req, res) => {
 router.post("/promoteLeader", authLead, (req, res) => {
   var username = req.body.username;
   Church.find()
-    .promoteLeader(req.church.churchId, username, req.body.proPic)
+    .promoteLeader(req.church.churchId, username)
     .then(doc => {
       console.log(doc);
       res.json({ success: true, doc });
