@@ -312,6 +312,8 @@ MemberSchema.query.sendFriendReq = function(username, friendId) {
 };
 
 MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
+  if(!friendId || !username) 
+  return;
   var Memb = this;
   console.log(username, friendId, approval);
   if (approval) {
@@ -328,8 +330,10 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
         $pull: {
           pendingReq: { id: username }
         },
-        $push: {
-          friends: username,
+        $addToSet: {
+          friends: username
+        },
+        $push: { 
           notifications: newNotification
         },
         $inc : {
@@ -344,7 +348,7 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
           $pull: {
             requests: friendId
           },
-          $push: {
+          $addToSet: {
             friends: friendId
           }
         }

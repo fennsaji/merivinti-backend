@@ -244,6 +244,8 @@ ChurchSchema.query.sendMemberReq = function(churchId, username) {
 };
 
 ChurchSchema.query.handleMembReq = function(churchId, username, approval) {
+  if(!username || !churchId)
+  return;
   var Church = this;
   newNotification = {
     who: churchId,
@@ -291,7 +293,7 @@ ChurchSchema.query.handleMembReq = function(churchId, username, approval) {
           $pull: {
             requests: { username }
           },
-          $push: {
+          $addToSet: {
             members: username
           }
         }
@@ -398,7 +400,7 @@ ChurchSchema.query.addAsLeader = function(churchId, username) {
       return Church.findOneAndUpdate(
         { churchId },
         {
-          $push: {
+          $addToSet: {
             leaders: { leadId: username, _id: doc._id },
             tokens: doc.tokens
           },
@@ -536,6 +538,8 @@ ChurchSchema.query.sendfollowReq = function(username, churchId) {
 // update his pr with churchId
 ChurchSchema.query.handlefollowReq = function(username, churchId, approval) {
   var Church = this;
+  if(!username || !churchId)
+  return;
 
   newNotification = {
     who: churchId,
@@ -551,8 +555,10 @@ ChurchSchema.query.handlefollowReq = function(username, churchId, approval) {
         $pull: {
           pendingReq: { id: churchId }
         },
+        $addToSet: {
+          following: churchId
+        },
         $push: {
-          following: churchId,
           notifications: newNotification
         },
         $inc : {
@@ -567,7 +573,7 @@ ChurchSchema.query.handlefollowReq = function(username, churchId, approval) {
           $pull: {
             requests: { username }
           },
-          $push: {
+          $addToSet: {
             followers: username
           }
         }
@@ -710,7 +716,9 @@ ChurchSchema.query.getDetails = function(churchId, username) {
       // if follower type followers and global
       // else just global
       if (leadInd > -1 || membInd > -1) {
-        return Prayer.find({ churchId });
+        return Prayer.find({ churchId })
+          .where("type")
+          .ne("friends");
       } else if (follInd > -1) {
         return Prayer.find({ churchId })
           .where("type")
