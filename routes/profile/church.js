@@ -141,7 +141,7 @@ router.post("/cancelfollowReq", authMemb, (req, res) => {
     });
 });
 
-router.delete("/unfollow", authMemb, (req, res) => {
+router.post("/unfollow", authMemb, (req, res) => {
   Church.find()
     .unfollow(req.memb.username, req.body.churchId)
     .then(doc => {
