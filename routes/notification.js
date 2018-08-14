@@ -72,46 +72,71 @@ function sendNotifyToPerson(notification, data, user, type) {
   findtoken(user)
     .then(token => {
       if (token) regToken = token;
+
+      var message = {
+        notification: notification,
+        android: {
+          ttl: 3600 * 1000 * 24,
+          notification: {
+            sound: "default",
+            tag: type
+          }
+        },
+        data: data,
+        token: regToken
+      };
+
+      admin
+        .messaging()
+        .send(message)
+        .then(response => {
+          // Response is a message ID string.
+          console.log("Successfully sent message:", response);
+        })
+        .catch(error => {
+          console.log("Error sending message:", error);
+        });
     })
     .catch(err => {
       console.log("error");
     });
 
-  var message = {
-    notification: notification,
-    android: {
-      ttl: 3600 * 1000 * 24,
-      notification: {
-        sound: "default",
-        tag: type
-      }
-    },
-    data: data,
-    token: regToken
-  };
+}
 
-  admin
-    .messaging()
-    .send(message)
-    .then(response => {
-      // Response is a message ID string.
-      console.log("Successfully sent message:", response);
+function sendNotifyToLeaders(notification, data, churchId, type) {
+  var regTokens;
+
+  findLeaderToken(churchId)
+    .then(tokens => {
+      regTokens = tokens;
+
+      if (regTokens.length != 0)
+      admin.messaging().sendToDevice(regTokens, {
+        data: data,
+        notification: notification
+      });
     })
-    .catch(error => {
-      console.log("Error sending message:", error);
-    });
+    .catch(err => {
+      console.log("errorleader toeken");
+    })
 }
 
 function findtoken(username) {
   return Member.findOne({ username })
     .select("regToken")
     .then(data => {
-      return data.regToken;
+      if(data.regToken)
+        return data.regToken;
+      return;
     })
     .catch(err => {
       console.log("Error");
       return;
     });
+}
+
+function findLeaderToken(churchId) {
+
 }
 
 router.post("/regtoken", authMemb, (req, res) => {
@@ -134,7 +159,7 @@ router.post("/regtoken", authMemb, (req, res) => {
     });
 });
 
-module.exports = { notify: router, sendNotifyToTopic, sendNotifyToPerson };
+module.exports = { notify: router, sendNotifyToTopic, sendNotifyToPerson, sendNotifyToLeaders };
 
 // sendNotifyToTopic({title : 'HI ass 2345678901234567890 ky haal hae tere kyu vella beth hae word limit bata chal', body: 'HI ass 2345678901234567890 ky haal hae tere kyu vella beth hae word limit bata chal 2345678901234567890 ky haal hae tere kyu vella beth hae word limit '}, {datas: '1'}, 'mfbchurch');
 

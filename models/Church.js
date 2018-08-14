@@ -247,12 +247,12 @@ ChurchSchema.query.handleMembReq = function(churchId, username, approval) {
   if(!username || !churchId)
   return;
   var Church = this;
-  newNotification = {
-    who: churchId,
-    by: 'church',
-    body: "accepted you member request",
-    date: new Date()
-  }
+  // newNotification = {
+  //   who: churchId,
+  //   by: 'church',
+  //   body: "accepted you member request",
+  //   date: new Date()
+  // }
 
   if (approval) {
     return Member.findOneAndUpdate(
@@ -263,13 +263,14 @@ ChurchSchema.query.handleMembReq = function(churchId, username, approval) {
         },
         $set: {
           churchId
-        },
-        $push: {
-          notifications: newNotification
-        },
-        $inc: {
-          newNotifications: 1
         }
+        ,
+        // $push: {
+        //   notifications: newNotification
+        // },
+        // $inc: {
+        //   newNotifications: 1
+        // }
       }
     ).then(d => {
       Prayer.updateMany(
@@ -541,12 +542,12 @@ ChurchSchema.query.handlefollowReq = function(username, churchId, approval) {
   if(!username || !churchId)
   return;
 
-  newNotification = {
-    who: churchId,
-    by: 'church',
-    body: "accepted your follow request",
-    date: new Date()
-  }
+  // newNotification = {
+  //   who: churchId,
+  //   by: 'church',
+  //   body: "accepted your follow request",
+  //   date: new Date()
+  // }
   // console.log(username, churchId);
   if (approval) {
     return Member.findOneAndUpdate(
@@ -557,16 +558,18 @@ ChurchSchema.query.handlefollowReq = function(username, churchId, approval) {
         },
         $addToSet: {
           following: churchId
-        },
-        $push: {
-          notifications: newNotification
-        },
-        $inc : {
-          newNotifications: 1
         }
+        // ,
+        // $push: {
+        //   notifications: newNotification
+        // },
+        // $inc : {
+        //   newNotifications: 1
+        // }
       }
     ).then(d => {
       // console.log(username, churchId);
+
       return Church.findOneAndUpdate(
         { churchId },
         {
