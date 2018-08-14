@@ -93,6 +93,13 @@ router.post("/sendfriendReq", authMemb, (req, res) => {
   Member.find()
     .sendFriendReq(username, friendId)
     .then(d => {
+      sendNotifyToPerson({
+        body: username + ' send you friend request', 
+        title: 'Notification from Vinti'
+      }, {
+        type : 'Requests'
+      }, friendId,
+      null)
       // console.log('1234');
       res.json({ success: true });
     })
@@ -108,6 +115,15 @@ router.post("/handleFriendReq", authMemb, (req, res) => {
   Member.find()
     .handleFriendReq(username, friendId, approval, req.body.proPic)
     .then(d => {
+      if(approval) {
+        sendNotifyToPerson({
+          body: 'You are now friends with ' + username, 
+          title: 'Notification from Vinti'
+        }, {
+          type : 'Requests'
+        }, friendId,
+        null)
+      }
       res.json({ success: true });
     })
     .catch(errObj => {

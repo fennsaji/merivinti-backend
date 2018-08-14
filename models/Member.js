@@ -321,12 +321,12 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
   var Memb = this;
   // console.log(username, friendId, approval);
   if (approval) {
-    newNotification = {
-      who: username,
-      by: 'user',
-      body: "accepted your friend request",
-      date: new Date()
-    }
+    // newNotification = {
+    //   who: username,
+    //   by: 'user',
+    //   body: "accepted your friend request",
+    //   date: new Date()
+    // }
     // console.log('123');
     return Memb.findOneAndUpdate(
       { username:  friendId},
@@ -336,13 +336,14 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
         },
         $addToSet: {
           friends: username
-        },
-        $push: { 
-          notifications: newNotification
-        },
-        $inc : {
-          newNotifications: 1
         }
+        // ,
+        // $push: { 
+        //   notifications: newNotification
+        // },
+        // $inc : {
+        //   newNotifications: 1
+        // }
       }
     ).then(d => {
       // console.log('123');

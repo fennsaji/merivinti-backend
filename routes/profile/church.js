@@ -122,6 +122,13 @@ router.post("/followReq", authMemb, (req, res) => {
     .sendfollowReq(req.memb.username, req.body.churchId)
     .then(doc => {
       // console.log('1');
+      // sendNotifyToLeaders({
+      //   body: req.memb.username + ' send you follow request', 
+      //   title: 'Notification from Vinti'
+      // }, {
+      //   type : 'Requests'
+      // }, req.body.churchId,
+      // null)
       res.json({ success: true });
     })
     .catch(e => {
@@ -133,8 +140,17 @@ router.post("/handlefollowReq", authLead, (req, res) => {
   Church.find()
     .handlefollowReq(req.body.username, req.church.churchId, req.body.approval)
     .then(doc => {
+      if(req.body.approval) {
+        sendNotifyToPerson({
+          body: req.church.churchId + ' accepted your follow request', 
+          title: 'Notification from Vinti'
+        }, {
+          type : 'Requests'
+        }, req.body.username,
+        null)
+      }
       res.json({ success: true });
-    })
+    }) 
     .catch(e => {
       res.status(400).json({ success: false });
     });
@@ -182,11 +198,18 @@ router.post("/sendMembReq", authMemb, (req, res) => {
       errMsg: "Already a member of a church"
     });
   }
-
+  
   Church.find()
     .sendMemberReq(req.body.churchId, req.memb.username)
     .then(church => {
       // console.log("register", church);
+      // sendNotifyToLeaders({
+      //   body: req.memb.username + ' send you member request', 
+      //   title: 'Notification from Vinti'
+      // }, {
+      //   type : 'Requests'
+      // }, req.body.churchId,
+      // null)
       res.json({ success: true });
     })
     .catch(err => {
@@ -206,6 +229,15 @@ router.post("/handleMembReq", authLead, (req, res) => {
     .handleMembReq(req.church.churchId, username, req.body.approval)
     .then(doc => {
       // console.log(doc);
+      if(req.body.approval) {
+        sendNotifyToPerson({
+          body: 'You are now a member of ' + req.church.churchId, 
+          title: 'Notification from Vinti'
+        }, {
+          type : 'Requests'
+        }, req.body.username,
+        null)
+      }
       res.json({ success: true, doc });
     })
     .catch(errObj => {
@@ -258,6 +290,13 @@ router.post("/addAsLeader", authLead, (req, res) => {
   Church.find()
     .addAsLeader(req.church.churchId, username)
     .then(doc => {
+      sendNotifyToPerson({
+        body: req.church.churchId + ' added you as a leader', 
+        title: 'Notification from Vinti'
+      }, {
+        type : 'Requests'
+      }, username,
+      null)
       // console.log(doc);
       res.json({ success: true, doc });
     })
