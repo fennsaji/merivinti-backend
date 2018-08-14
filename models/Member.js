@@ -41,6 +41,9 @@ var MemberSchema = new mongoose.Schema({
     minlength: 6,
     trim: true
   },
+  regToken: {
+    type: String
+  },
   friends: [
     {
       type: String,
@@ -121,14 +124,15 @@ MemberSchema.methods.toJSON = function() {
     "pendingReq",
     "pendingMemb",
     "newNotifications",
-    "notifications"
+    "notifications",
+    "regToken"
   ]);
 };
 
 MemberSchema.methods.generateAuthToken = function() {
   var memb = this;
   var access = "auth";
-  console.log('123');
+  // console.log('123');
   var token = jwt
     .sign(
       {
@@ -139,10 +143,10 @@ MemberSchema.methods.generateAuthToken = function() {
       process.env.SECRET || db.secret
     )
     .toString();
-    console.log('123');
+    // console.log('123');
   memb.tokens.push({ access, token });
   return memb.save().then(() => {
-    console.log('123');
+    // console.log('123');
     return token;
   });
 };
@@ -161,11 +165,11 @@ MemberSchema.statics.findByToken = function(token) {
   var Memb = this;
   var decoded;
 
-  console.log("token", token);
+  // console.log("token", token);
   try {
     decoded = jwt.verify(token, process.env.SECRET || db.secret);
   } catch (e) {
-    console.log("no member wt verifyj");
+    // console.log("no member wt verifyj");
     return Promise.reject(e);
   }
 
@@ -212,27 +216,27 @@ MemberSchema.query.getDetails = function(username, myusername, mychurch) {
     .select('proPic username name isLeader churchId following friends')
     .then(d => {
       doc = d;
-      console.log('1', doc);
+      // console.log('1', doc);
       if(!doc) {
         throw "Error";
       }
-      console.log('1', doc);
+      // console.log('1', doc);
       member = _.pick(doc , ["proPic", "isLeader", "username", "name", "churchId"]);
       member.noOfFriends = doc.friends.length;
       member.noOfFollowing = doc.following.length;
-      console.log('2');
+      // console.log('2');
       var friendInd = doc.friends.indexOf(myusername);
       var followInd = doc.following.indexOf(mychurch);
       console.log('1', friendInd, followInd);
       if(friendInd > -1 || (mychurch === doc.churchId) || username === myusername) {
-        console.log('1');
+        // console.log('1');
         return Prayer.find({username});
       } else if(followInd > -1){
-        console.log('2');
+        // console.log('2');
         return Prayer.find({username})
           .where('type').equals('followers');
       } else {
-        console.log('3');
+        // console.log('3');
         return Prayer.find({username})
          .where('type').equals('global');
       }
@@ -245,7 +249,7 @@ MemberSchema.query.getDetails = function(username, myusername, mychurch) {
 MemberSchema.query.updateProfile = function(username, updatedPro) {
   var Memb = this;
 
-  console.log(username, updatedPro);
+  // console.log(username, updatedPro);
   return Memb.findOneAndUpdate({username},{
     $set: {
       name: updatedPro.name,
@@ -280,7 +284,7 @@ MemberSchema.query.getInfoFollowings = function(username, Church) {
 
 MemberSchema.query.sendFriendReq = function(username, friendId) {
   var Memb = this;
-  console.log(username, friendId);
+  // console.log(username, friendId);
   // newNotification = {
   //   who: username,
   //   by: 'user',
@@ -296,7 +300,7 @@ MemberSchema.query.sendFriendReq = function(username, friendId) {
     }
   )
   .then(d => {
-    console.log('123');
+    // console.log('123');
     return Member.findOneAndUpdate(
       { username: friendId },
       {
@@ -315,7 +319,7 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
   if(!friendId || !username) 
   return;
   var Memb = this;
-  console.log(username, friendId, approval);
+  // console.log(username, friendId, approval);
   if (approval) {
     newNotification = {
       who: username,
@@ -323,7 +327,7 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
       body: "accepted your friend request",
       date: new Date()
     }
-    console.log('123');
+    // console.log('123');
     return Memb.findOneAndUpdate(
       { username:  friendId},
       {
@@ -341,7 +345,7 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
         }
       }
     ).then(d => {
-      console.log('123');
+      // console.log('123');
       return Member.findOneAndUpdate(
         { username },
         {
@@ -355,7 +359,7 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
       );
     });
   } else {
-    console.log('123');
+    // console.log('123');
     return Memb.findOneAndUpdate(
       { username: friendId },
       {
@@ -364,7 +368,7 @@ MemberSchema.query.handleFriendReq = function(username, friendId, approval) {
         }
       }
     ).then(d => {
-      console.log('123');
+      // console.log('123');
       return Member.findOneAndUpdate(
         { username },
         {
@@ -451,11 +455,11 @@ MemberSchema.query.search = function(query, username) {
     .limit(20);
   }).then(res => {
     results.push(...res);
-    console.log(results);
+    // console.log(results);
     results = results.filter((doc, index, self) => 
       index === self.findIndex((d) => (d.username === doc.username))
     )
-    console.log(results);
+    // console.log(results);
     return results.slice();
   });
 }
@@ -511,18 +515,18 @@ MemberSchema.query.getNotificatiions = function(username, Church) {
         }
       })
       churches = churchesNotify.map(o => o.who)
-      console.log('churches', churches);
+      // console.log('churches', churches);
       return Member.find().getBasicInfo([...doc.requests, ...users])
     }).then(bI => {
       basicInfo = bI;
-      console.log('info', basicInfo);
+      // console.log('info', basicInfo);
       return Church.find({
         churchId: {
           $in: churches
         }
       }).select('churchName churchId proPic')
     }).then( churchInfo => {
-      console.log('lisss', list, basicInfo, churchInfo);
+      // console.log('lisss', list, basicInfo, churchInfo);
       return {list, basicInfo, churchInfo};
     });
 }

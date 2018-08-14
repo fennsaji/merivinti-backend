@@ -92,28 +92,28 @@ PrayerSchema.query.allPr = function(username, Church, Member) {
       username.push(...doc.friends);
       var churchIds = [doc.churchId];
       churchIds.push(...doc.following);
-      console.log("Document11", doc);
-      console.log("Doc", churchIds);
+      // console.log("Document11", doc);
+      // console.log("Doc", churchIds);
       return Church.find().getMembs(churchIds);
     })
     .then(d => {
-      console.log("123", d);
+      // console.log("123", d);
       for (let i in d) {
-        console.log("obj", i, d[i], followers);
+        // console.log("obj", i, d[i], followers);
         followers.push(...d[i].leaders.map(o => o.leadId));
         followers.push(...d[i].members);
-        console.log("username", followers);
+        // console.log("username", followers);
       }
       followers = Array.from(new Set(followers));
-      console.log("followers", followers);
+      // console.log("followers", followers);
       return Member.find()
         .getBasicInfo([...username,...followers]);
     //   return followers;
     })
     .then(bU => {
       basicInfo = bU;
-      console.log('bu', basicInfo)
-      console.log(username);
+      // console.log('bu', basicInfo)
+      // console.log(username);
       return Pr.find()
         .getPr(username, followers)
         .sort("-date")
@@ -142,19 +142,19 @@ PrayerSchema.query.byDate = function(username, date, Church, Member) {
   var date = new Date(date);
   var basicInfo;
   var followers =[];
-  console.log(date, username);
+  // console.log(date, username);
   return Member.findOne({ username })
     .select("friends churchId following")
     .then(doc => {
       // username = doc.friends.map(o => o.username);
-      console.log("doc");
+      // console.log("doc");
       username.push(...doc.friends);
-      console.log("doc");
+      // console.log("doc");
       var churchIds = [doc.churchId];
-      console.log("doc");
+      // console.log("doc");
       churchIds.push(...doc.following);
-      console.log("Document11", doc);
-      console.log("Doc", churchIds);
+      // console.log("Document11", doc);
+      // console.log("Doc", churchIds);
       return Church.find({
         churchId: {
           $in: churchIds
@@ -162,21 +162,21 @@ PrayerSchema.query.byDate = function(username, date, Church, Member) {
       }).select("members leaders.leadId");
     })
     .then(d => {
-      console.log("123", d);
+      // console.log("123", d);
       for (let i in d) {
-        console.log("obj", i);
+        // console.log("obj", i);
         followers.push(...d[i].leaders.map(o => o.leadId));
         followers.push(...d[i].members);
       }
       followers = Array.from(new Set(followers));
-      console.log("username", followers);
+      // console.log("username", followers);
       // return followers;
     return Member.find()
         .getBasicInfo([...username,...followers]);
     })
     .then(bI => {
         basicInfo = bI;
-      console.log("date", date);
+      // console.log("date", date);
       return Pr.find()
         .getPr(username, followers)
         .where("date")
@@ -185,17 +185,17 @@ PrayerSchema.query.byDate = function(username, date, Church, Member) {
         .limit(15);
     })
     .then(prayers => {
-        console.log('yae');
+        // console.log('yae');
         return {prayers, basicInfo};
     });
 };
 
 PrayerSchema.query.verifyAndDeletePr = function(id, username, churchId) {
   var Pr = this;
-  console.log(id, username, churchId);
+  // console.log(id, username, churchId);
   return Pr.findOne({_id: id}).then(pr => {
     if (pr.username == username) {
-      console.log(pr);
+      // console.log(pr);
       return Pr.findOneAndRemove({_id: id});
     } else if (churchId) {
       return Church.find({ churchId })
@@ -205,9 +205,9 @@ PrayerSchema.query.verifyAndDeletePr = function(id, username, churchId) {
           for (let i in d) {
             leaders.push(...d[i].leaders.map(o => o.leadId));
           }
-          console.log(leaders);
+          // console.log(leaders);
           if (leaders.indexOf(username) > -1) {
-            console.log("true", id);
+            // console.log("true", id);
             return Pr.findByIdAndRemove(id);
           }
           return;

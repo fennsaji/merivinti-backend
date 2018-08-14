@@ -1,6 +1,7 @@
 const { authLead, authMemb } = require("../../config/auth");
 const Church = require("../../models/Church");
 const Member = require("../../models/Member");
+const {sendNotifyToPerson, sendNotifyToTopic} = require("../notification")
 const express = require("express");
 const {saveImage} = require('../../config/assests');
 const _ = require("lodash");
@@ -9,12 +10,12 @@ const router = express.Router();
 
 // Get Details
 router.post("/getDetails", authMemb, (req, res) => {
-  console.log('1');
+  // console.log('1');
   Member.find()
     .getDetails(req.body.username, req.memb.username)
     .then(({member, prayerReq}) => {
       member.noOfPost = prayerReq.length;
-      console.log('church', member, prayerReq);
+      // console.log('church', member, prayerReq);
       res.json({success: true, member, prayerReq})
     })
     .catch(err => {
@@ -61,7 +62,7 @@ router.get("/getNotifications", authMemb, (req, res) => {
   Member.find()
     .getNotificatiions(req.memb.username, Church)
     .then(({list, basicInfo, churchInfo}) => {
-      console.log('1234567', list, basicInfo)
+      // console.log('1234567', list, basicInfo)
       res.json({success: true, list, basicInfo, churchInfo})
     })
     .catch(err => {
@@ -88,11 +89,11 @@ router.delete('/newNotifications', authMemb, (req, res) => {
 router.post("/sendfriendReq", authMemb, (req, res) => {
   var username = req.memb.username;
   var friendId = req.body.username;
-  console.log(username, friendId);
+  // console.log(username, friendId);
   Member.find()
     .sendFriendReq(username, friendId)
     .then(d => {
-      console.log('1234');
+      // console.log('1234');
       res.json({ success: true });
     })
     .catch(errObj => {

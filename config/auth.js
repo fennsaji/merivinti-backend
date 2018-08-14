@@ -23,8 +23,8 @@ var authLead = (req, res, next) => {
 var authMemb = (req, res, next) => {
   var token = req.header("x-auth");
 
-  console.log(req.header);
-  console.log('token2', token);
+  // console.log(req.header);
+  // console.log('token2', token);
   Member.findByToken(token)
     .then(memb => {
       if (!memb) {
@@ -37,6 +37,7 @@ var authMemb = (req, res, next) => {
       next();
     })
     .catch(e => {
+      console.log(e);
       res.status(401).send("Error");
     });
 };
@@ -44,15 +45,15 @@ var authMemb = (req, res, next) => {
 var authOwner = (req, res, next) => {
   var token = req.header("x-auth");
 
-  console.log(req.header);
-  console.log('token2', token);
+  // console.log(req.header);
+  // console.log('token2', token);
   Member.findByToken(token)
     .then(memb => {
       if (!memb) {
-        console.log("no member");
+        // console.log("no member");
         return Promise.reject();
       }
-      if(req.memb.username != process.env.ADMIN || db.admin) {
+      if (req.memb.username != process.env.ADMIN || db.admin) {
         throw "Error";
       }
 

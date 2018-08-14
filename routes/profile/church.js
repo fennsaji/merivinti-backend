@@ -2,6 +2,7 @@ const { authLead, authMemb } = require("../../config/auth");
 const Church = require("../../models/Church");
 const Member = require("../../models/Member");
 const express = require("express");
+const {sendNotifyToPerson, sendNotifyToTopic} = require("../notification")
 const { saveImage } = require('../../config/assests');
 const router = express.Router();
 const _ = require("lodash");
@@ -14,13 +15,13 @@ router.post("/getDetails", authMemb, (req, res) => {
   Church.find()
     .getDetails(req.body.churchId, req.memb.username)
     .then(({church, prayerReq, basicInfo }) => {
-      console.log('123457777', church, prayerReq);
+      // console.log('123457777', church, prayerReq);
       church.noOfPost = prayerReq.length;
-      console.log('chdaokdasjidj');
+      // console.log('chdaokdasjidj');
       res.json({success: true, church, prayerReq, basicInfo})
     })
     .catch(err => {
-      console.log('asfa');
+      // console.log('asfa');
       res.status(400).json({success: false, err})
     });
 });
@@ -87,6 +88,15 @@ router.post('/pushNotifications', authLead, (req, res) => {
   Church.find()
     .pushNotifications(req.church.churchId, req.body.newNotify)
     .then(list => {
+
+      sendNotifyToTopic({
+          title: 'Message From Church', 
+          body: req.body.newNotify.body
+        }, {
+          type : 'Notification'
+        }, 
+        req.church.churchId, null);
+
       res.json({success: true, list})
     })
     .catch(err => {
@@ -111,7 +121,7 @@ router.post("/followReq", authMemb, (req, res) => {
   Church.find()
     .sendfollowReq(req.memb.username, req.body.churchId)
     .then(doc => {
-      console.log('1');
+      // console.log('1');
       res.json({ success: true });
     })
     .catch(e => {
@@ -176,11 +186,11 @@ router.post("/sendMembReq", authMemb, (req, res) => {
   Church.find()
     .sendMemberReq(req.body.churchId, req.memb.username)
     .then(church => {
-      console.log("register", church);
+      // console.log("register", church);
       res.json({ success: true });
     })
     .catch(err => {
-      console.log("Could not request");
+      // console.log("Could not request");
       res.status(400).json({
         errCode: 2,
         success: false,
@@ -195,7 +205,7 @@ router.post("/handleMembReq", authLead, (req, res) => {
   Church.find()
     .handleMembReq(req.church.churchId, username, req.body.approval)
     .then(doc => {
-      console.log(doc);
+      // console.log(doc);
       res.json({ success: true, doc });
     })
     .catch(errObj => {
@@ -208,7 +218,7 @@ router.post("/cancelMembReq", authMemb, (req, res) => {
   Church.find()
     .cancelMembReq(req.body.churchId, username)
     .then(doc => {
-      console.log(doc);
+      // console.log(doc);
       res.json({ success: true, doc });
     })
     .catch(errObj => {
@@ -221,7 +231,7 @@ router.delete("/unmember", authMemb, (req, res) => {
   Church.find()
     .unmember(req.memb.churchId, username)
     .then(doc => {
-      console.log(doc);
+      // console.log(doc);
       res.json({ success: true, doc });
     })
     .catch(errObj => {
@@ -234,7 +244,7 @@ router.post("/removeMember", authLead, (req, res) => {
   Church.find()
     .unmember(req.church.churchId, username)
     .then(doc => {
-      console.log(doc);
+      // console.log(doc);
       res.json({ success: true, doc });
     })
     .catch(errObj => {
@@ -248,7 +258,7 @@ router.post("/addAsLeader", authLead, (req, res) => {
   Church.find()
     .addAsLeader(req.church.churchId, username)
     .then(doc => {
-      console.log(doc);
+      // console.log(doc);
       res.json({ success: true, doc });
     })
     .catch(e => {
@@ -262,7 +272,7 @@ router.post("/removeLeader", authLead, (req, res) => {
   Church.find()
     .removeLeader(req.church.churchId, username)
     .then(doc => {
-      console.log(doc);
+      // console.log(doc);
       res.json({ success: true, doc });
     })
     .catch(e => {
@@ -275,7 +285,7 @@ router.post("/promoteLeader", authLead, (req, res) => {
   Church.find()
     .promoteLeader(req.church.churchId, username)
     .then(doc => {
-      console.log(doc);
+      // console.log(doc);
       res.json({ success: true, doc });
     })
     .catch(e => {
@@ -288,11 +298,11 @@ router.post("/addFamiliy", authLead, (req, res) => {
   Church.find()
     .addNewFly(req.church.churchId, newfly)
     .then(d => {
-      console.log(d);
+      // console.log(d);
       res.json({ success: true, updateMemb: d.families });
     })
     .catch(e => {
-      console.log("error");
+      // console.log("error");
       res.status(400).json({ success: false, errNo: 0, errObj: e });
     });
 });
@@ -304,7 +314,7 @@ router.put("/updatePro", authLead, (req, res) => {
     .updateProfile(req.church.churchId, updated)
     .then(doc => {
       // console.log(doc);
-      console.log('done savig');
+      // console.log('done savig');
       // saveImage(updated.proPic, req.church.churchId);
       res.json({ success: true, doc });
     })
@@ -317,9 +327,9 @@ router.post("/search", authMemb, (req, res) => {
     Church.find()
       .search(req.body.search, req.memb.churchId)
       .then(churches => {
-        console.log('123',churches);
+        // console.log('123',churches);
         res.json({ success: true, churches });
-      })
+      })  
       .catch(err => {
         res.status(400).json({ success: false, err });
       });
